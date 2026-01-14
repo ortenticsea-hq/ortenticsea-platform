@@ -1,0 +1,86 @@
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>OrtenticSEA - Abuja's Trusted Marketplace</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+      @keyframes float {
+        0% { transform: translateY(0px) rotate(0deg); }
+        50% { transform: translateY(-20px) rotate(5deg); }
+        100% { transform: translateY(0px) rotate(0deg); }
+      }
+      @keyframes pulse-slow {
+        0%, 100% { opacity: 0.3; transform: scale(1); }
+        50% { opacity: 0.6; transform: scale(1.1); }
+      }
+      @keyframes drift {
+        from { transform: translateX(0) translateY(0); }
+        to { transform: translateX(20px) translateY(20px); }
+      }
+      
+      body {
+        font-family: 'Inter', sans-serif;
+        background-color: #F7F8FA;
+        color: #0B1E3F;
+        overflow-x: hidden;
+      }
+      
+      .bg-pattern {
+        background-image: radial-gradient(#F26A21 0.5px, transparent 0.5px), radial-gradient(#0B1E3F 0.5px, #F7F8FA 0.5px);
+        background-size: 40px 40px;
+        background-position: 0 0, 20px 20px;
+        opacity: 0.03;
+        position: fixed;
+        inset: 0;
+        z-index: -1;
+      }
+
+      h1, h2, h3, h4, .font-poppins {
+        font-family: 'Poppins', sans-serif;
+      }
+      .primary-orange { color: #F26A21; }
+      .bg-primary-orange { background-color: #F26A21; }
+      .navy-blue { color: #0B1E3F; }
+      .bg-navy-blue { background-color: #0B1E3F; }
+
+      .animate-float { animation: float 6s ease-in-out infinite; }
+      .animate-pulse-slow { animation: pulse-slow 8s ease-in-out infinite; }
+
+      /* Custom scrollbar for better UX */
+      ::-webkit-scrollbar {
+        width: 8px;
+      }
+      ::-webkit-scrollbar-track {
+        background: #f1f1f1;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #0B1E3F20;
+        border-radius: 10px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #F26A21;
+      }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "@google/genai": "https://esm.sh/@google/genai@^1.34.0",
+    "react/": "https://esm.sh/react@^19.2.3/",
+    "react": "https://esm.sh/react@^19.2.3",
+    "@heroicons/react/": "https://esm.sh/@heroicons/react@^2.2.0/"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
+</head>
+  <body>
+    <div class="bg-pattern"></div>
+    <div id="root"></div>
+  <script type="module" src="/index.tsx"></script>
+</body>
+</html>

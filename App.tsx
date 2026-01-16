@@ -20,6 +20,7 @@ import SellerToolsView from './views/SellerToolsView.tsx';
 import { Product, ViewType, User, CartItem, Review, Seller, SellerApplication, UserRole, SellerStatus, SharedCartComment } from './types.ts';
 import { REVIEWS, PRODUCTS, SELLERS } from './constants.tsx';
 import { AudioService } from './services/audioService.ts';
+import { FirebaseAuthService } from './services/firebaseAuthService.ts';
 
 const REVIEWS_STORAGE_KEY = 'ortenticsea_reviews_v1';
 const APPS_STORAGE_KEY = 'ortenticsea_applications_v1';
@@ -90,9 +91,21 @@ const App: React.FC = () => {
     ];
   });
 
+  const [isLoading, setIsLoading] = useState(true);
+
   useEffect(() => {
     localStorage.setItem(APPS_STORAGE_KEY, JSON.stringify(applications));
   }, [applications]);
+
+  // Firebase Auth State Listener
+  useEffect(() => {
+    const unsubscribe = FirebaseAuthService.onAuthStateChanged((user) => {
+      setCurrentUser(user);
+      setIsLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   const [reviews, setReviews] = useState<Review[]>(() => {
     try {

@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { XMarkIcon, EyeIcon, EyeSlashIcon, SparklesIcon } from '@heroicons/react/24/outline';
 import Logo from '../components/Logo';
+import { FirebaseAuthService } from '../services/firebaseAuthService';
 
 interface LoginViewProps {
   onClose: () => void;
@@ -14,14 +15,39 @@ const LoginView: React.FC<LoginViewProps> = ({ onClose, onSuccess }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    onSuccess({
-      id: email === 'wuse@market.com' ? 'u123' : 'u_new',
-      name: isLogin ? (email === 'wuse@market.com' ? 'Wuse Merchant' : 'Abuja Shopper') : name,
-      email: email,
-    });
+    setError('');
+    setIsLoading(true);
+
+    try {
+      let user;
+      if (isLogin) {
+        user = await FirebaseAuthService.signInWithEmail(email, password);
+      } else {
+        user = await FirebaseAuthService.registerWithEmail(email, password, name);
+      }
+      onSuccess(user);
+    } catch (err: any) {
+      setError(err.message || 'Authentication failed');
+      setIsLoading(false);
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    setError('');
+    setIsLoading(true);
+
+    try {
+      const user = await FirebaseAuthService.signInWithGoogle();
+      onSuccess(user);
+    } catch (err: any) {
+      setError(err.message || 'Google sign-in failed');
+      setIsLoading(false);
+    }
   };
 
   const quickLogin = (type: 'admin' | 'seller') => {
@@ -115,11 +141,13 @@ const LoginView: React.FC<LoginViewProps> = ({ onClose, onSuccess }) => {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
                   required
-                  className="w-full bg-white px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#F26A21] transition-all"
+                  disabled={isLoading}
+                  className="w-full bg-white px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#F26A21] transition-all disabled:opacity-50"
                 />
                 <button 
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
+                  disabled={isLoading}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#0B1E3F]"
                 >
                   {showPassword ? <EyeSlashIcon className="w-5 h-5" /> : <EyeIcon className="w-5 h-5" />}
@@ -127,11 +155,27 @@ const LoginView: React.FC<LoginViewProps> = ({ onClose, onSuccess }) => {
               </div>
             </div>
 
+            {error && (
+              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm">
+                {error}
+              </div>
+            )}
+
             <button 
               type="submit"
-              className="w-full bg-[#F26A21] text-white py-4 rounded-xl font-bold text-lg hover:bg-orange-600 shadow-lg shadow-orange-500/20 transition-all active:scale-95"
+              disabled={isLoading}
+              className="w-full bg-[#F26A21] text-white py-4 rounded-xl font-bold text-lg hover:bg-orange-600 shadow-lg shadow-orange-500/20 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isLogin ? 'Sign In' : 'Create Account'}
+              {isLoading ? 'Loading...' : isLogin ? 'Sign In' : 'Create Account'}
+            </button>
+
+            <button 
+              type="button"
+              onClick={handleGoogleLogin}
+              disabled={isLoading}
+              className="w-full bg-white border-2 border-gray-200 text-[#0B1E3F] py-3 rounded-xl font-bold text-lg hover:bg-gray-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isLoading ? 'Loading...' : '🔍 Sign in with Google'}
             </button>
           </form>
 
@@ -140,7 +184,8 @@ const LoginView: React.FC<LoginViewProps> = ({ onClose, onSuccess }) => {
               {isLogin ? "Don't have an account?" : "Already have an account?"}
               <button 
                 onClick={() => setIsLogin(!isLogin)}
-                className="ml-2 font-bold text-[#F26A21] hover:underline"
+                disabled={isLoading}
+                className="ml-2 font-bold text-[#F26A21] hover:underline disabled:opacity-50"
               >
                 {isLogin ? 'Sign Up' : 'Sign In'}
               </button>

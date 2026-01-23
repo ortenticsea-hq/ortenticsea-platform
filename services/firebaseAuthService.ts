@@ -8,6 +8,7 @@ import {
   User as FirebaseUser,
   setPersistence,
   browserLocalPersistence,
+  sendEmailVerification,
 } from 'firebase/auth';
 import { auth, db } from './firebaseConfig';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
@@ -35,6 +36,7 @@ export class FirebaseAuthService {
         name: displayName,
         email: email,
         role: 'buyer',
+        emailVerified: firebaseUser.emailVerified,
         sellerStatus: 'none',
       };
 
@@ -55,6 +57,10 @@ export class FirebaseAuthService {
       if (!user) {
         throw new Error('User profile not found');
       }
+
+      // Sync emailVerified status from Auth
+      user.emailVerified = userCredential.user.emailVerified;
+
       return user;
     } catch (error: any) {
       throw new Error(error.message || 'Failed to sign in');
@@ -80,6 +86,7 @@ export class FirebaseAuthService {
           name: firebaseUser.displayName || 'Google User',
           email: firebaseUser.email || '',
           role: 'buyer',
+          emailVerified: firebaseUser.emailVerified,
           sellerStatus: 'none',
         };
         await setDoc(doc(db, 'users', firebaseUser.uid), user);
@@ -110,6 +117,9 @@ export class FirebaseAuthService {
       const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
         if (firebaseUser) {
           const user = await this.fetchUserFromFirestore(firebaseUser.uid);
+          if (user) {
+            user.emailVerified = firebaseUser.emailVerified;
+          }
           resolve(user || null);
         } else {
           resolve(null);
@@ -139,10 +149,22 @@ export class FirebaseAuthService {
     return onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         const user = await this.fetchUserFromFirestore(firebaseUser.uid);
+        if (user) {
+          user.emailVerified = firebaseUser.emailVerified;
+        }
         callback(user || null);
       } else {
         callback(null);
       }
     });
+  }
+
+  /**
+   * Sends a verification email to the currently signed-in user.
+   */
+  static async sendVerificationEmail(): Promise<void> {
+    if (auth.currentUser) {
+      await sendEmailVerification(auth.currentUser);
+    }
   }
 }

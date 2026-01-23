@@ -3,7 +3,6 @@ import React from 'react';
 import { 
   DevicePhoneMobileIcon, 
   ComputerDesktopIcon, 
-  TvIcon, 
   HomeIcon, 
   SparklesIcon, 
   TagIcon, 
@@ -48,6 +47,24 @@ const PantIcon = () => (
     <path d="M12 3v11" />
     <path d="M9 3v2" />
     <path d="M15 3v2" />
+  </svg>
+);
+
+const SocksIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6">
+    <path d="M5 3h4v6c0 2-1 4-2 4s-2-2-2-4V3z" />
+    <path d="M15 3h4v6c0 2-1 4-2 4s-2-2-2-4V3z" />
+    <path d="M5 13h4v8H5z" />
+    <path d="M15 13h4v8h-4z" />
+  </svg>
+);
+
+const JerseyIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6">
+    <path d="M4 7h16l-1 12a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2L4 7z" />
+    <path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+    <path d="M9 11h6" />
+    <path d="M10 16h4" />
   </svg>
 );
 
@@ -96,7 +113,9 @@ export const CATEGORIES: Category[] = [
   { id: 'c2', name: 'Laptops', icon: <ComputerDesktopIcon className="w-6 h-6" /> },
   { id: 'c15', name: 'Denim Jeans', icon: <PantIcon /> },
   { id: 'c16', name: 'Lumber Jacket', icon: <ShirtIcon /> },
-  { id: 'c3', name: 'TVs', icon: <TvIcon className="w-6 h-6" /> },
+  { id: 'c19', name: 'Hoodie', icon: <ShirtIcon /> },
+  { id: 'c17', name: 'Socks', icon: <SocksIcon /> },
+  { id: 'c18', name: 'Jersey', icon: <JerseyIcon /> },
   { id: 'c4', name: 'Home', icon: <HomeIcon className="w-6 h-6" /> },
   { id: 'c5', name: 'Appliances', icon: <BoltIcon className="w-6 h-6" /> },
   { id: 'c6', name: 'Clothing', icon: <ShoppingBagIcon className="w-6 h-6" /> },

@@ -12,6 +12,7 @@ import {
   ChatBubbleBottomCenterTextIcon,
   PaperAirplaneIcon
 } from '@heroicons/react/24/outline';
+import { User } from '../types';
 
 interface CartViewProps {
   items: CartItem[];
@@ -23,6 +24,8 @@ interface CartViewProps {
   sharedId?: string;
   comments?: SharedCartComment[];
   onAddComment?: (text: string) => void;
+  currentUser?: User | null;
+  onLoginRequired?: () => void;
 }
 
 const CartView: React.FC<CartViewProps> = ({ 
@@ -34,13 +37,20 @@ const CartView: React.FC<CartViewProps> = ({
   isShared = false,
   sharedId,
   comments = [],
-  onAddComment
+  onAddComment,
+  currentUser,
+  onLoginRequired
 }) => {
   const [copied, setCopied] = useState(false);
   const [newComment, setNewComment] = useState('');
   const total = items.reduce((sum, item) => sum + (item.product.price * item.quantity), 0);
 
   const handleShare = () => {
+    if (!currentUser) {
+      onLoginRequired?.();
+      return;
+    }
+
     const data = items.map(item => ({ id: item.product.id, qty: item.quantity }));
     const encoded = btoa(JSON.stringify(data));
     const uniqueId = sharedId || Math.random().toString(36).substr(2, 9);
@@ -228,7 +238,13 @@ const CartView: React.FC<CartViewProps> = ({
             
             {!isShared ? (
               <button 
-                onClick={onCheckout}
+                onClick={() => {
+                  if (!currentUser) {
+                    onLoginRequired?.();
+                  } else {
+                    onCheckout();
+                  }
+                }}
                 className="w-full bg-[#0B1E3F] text-white py-4 rounded-2xl font-bold hover:bg-slate-800 transition-all flex items-center justify-center gap-2"
               >
                 Checkout Now

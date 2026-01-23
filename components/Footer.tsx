@@ -3,47 +3,48 @@ import React from 'react';
 
 interface FooterProps {
   onBecomeSeller?: () => void;
+  setView?: (view: string) => void;
 }
 
-const Footer: React.FC<FooterProps> = ({ onBecomeSeller }) => {
+const Footer: React.FC<FooterProps> = ({ onBecomeSeller, setView }) => {
   const columns = [
     {
       title: 'Buy',
       links: [
-        { label: 'Browse products', action: '#' },
-        { label: 'Buyer protection', action: '#' },
-        { label: 'How buying works', action: '#' },
-        { label: 'Verified sellers', action: '#' },
-        { label: 'Returns & refunds', action: '#' },
+        { label: 'Browse products', view: 'categories' },
+        { label: 'Buyer protection', view: 'page-buyer-protection' },
+        { label: 'How buying works', view: 'page-how-buying-works' },
+        { label: 'Verified sellers', view: 'page-verified-sellers' },
+        { label: 'Returns & refunds', view: 'page-returns-refunds' },
       ],
     },
     {
       title: 'Sell',
       links: [
         { label: 'Start selling', onClick: onBecomeSeller },
-        { label: 'Seller verification', action: '#' },
-        { label: 'Seller guidelines', action: '#' },
-        { label: 'Fees', action: '#' },
-        { label: 'Seller dashboard', action: '#' },
+        { label: 'Seller verification', view: 'page-seller-verification' },
+        { label: 'Seller guidelines', view: 'page-seller-guidelines' },
+        { label: 'Fees', view: 'page-fees' },
+        { label: 'Seller dashboard', view: 'seller-dashboard' },
       ],
     },
     {
       title: 'Ortenticsea',
       links: [
-        { label: 'About Ortenticsea', action: '#' },
-        { label: 'Trust & verification', action: '#' },
-        { label: 'Policies', action: '#' },
-        { label: 'Careers', action: '#' },
-        { label: 'Press', action: '#' },
+        { label: 'About Ortenticsea', view: 'page-about' },
+        { label: 'Trust & verification', view: 'page-trust' },
+        { label: 'Policies', view: 'page-policies' },
+        { label: 'Careers', view: 'page-careers' },
+        { label: 'Press', view: 'page-press' },
       ],
     },
     {
       title: 'Help & Support',
       links: [
-        { label: 'Help center', action: '#' },
-        { label: 'Contact support', action: '#' },
-        { label: 'Report an issue', action: '#' },
-        { label: 'Dispute resolution', action: '#' },
+        { label: 'Help center', view: 'page-help-center' },
+        { label: 'Contact support', view: 'page-contact' },
+        { label: 'Report an issue', view: 'page-report-issue' },
+        { label: 'Dispute resolution', view: 'page-disputes' },
       ],
     },
     {
@@ -71,17 +72,17 @@ const Footer: React.FC<FooterProps> = ({ onBecomeSeller }) => {
                     {link.onClick ? (
                       <button
                         onClick={link.onClick}
-                        className="text-[13px] font-medium text-orange-50 hover:text-white hover:underline transition-all text-left"
+                        className="text-[13px] font-medium text-orange-50 hover:text-white hover:underline transition-all text-left w-full"
                       >
                         {link.label}
                       </button>
                     ) : (
-                      <a
-                        href={link.action}
+                      <button
+                        onClick={() => setView && link.view && setView(link.view)}
                         className="text-[13px] font-medium text-orange-50 hover:text-white hover:underline transition-all"
                       >
                         {link.label}
-                      </a>
+                      </button>
                     )}
                   </li>
                 ))}
@@ -111,18 +112,18 @@ const Footer: React.FC<FooterProps> = ({ onBecomeSeller }) => {
           <div className="flex flex-col md:flex-row justify-between items-center gap-6">
             <div className="flex flex-col md:flex-row items-center gap-2 md:gap-8">
               <p className="text-[12px] font-medium opacity-80">
-                &copy; Ortenticsea. All rights reserved.
+                &copy; 2026 OrtenticSea. All rights reserved.
               </p>
               <nav className="flex items-center gap-6">
-                <a href="#" className="text-[12px] font-medium opacity-80 hover:opacity-100 hover:underline">
+                <button onClick={() => setView?.('page-privacy')} className="text-[12px] font-medium opacity-80 hover:opacity-100 hover:underline">
                   Privacy Policy
-                </a>
-                <a href="#" className="text-[12px] font-medium opacity-80 hover:opacity-100 hover:underline">
+                </button>
+                <button onClick={() => setView?.('page-terms')} className="text-[12px] font-medium opacity-80 hover:opacity-100 hover:underline">
                   Terms of Use
-                </a>
-                <a href="#" className="text-[12px] font-medium opacity-80 hover:opacity-100 hover:underline">
+                </button>
+                <button onClick={() => setView?.('page-accessibility')} className="text-[12px] font-medium opacity-80 hover:opacity-100 hover:underline">
                   Accessibility
-                </a>
+                </button>
               </nav>
             </div>
             
@@ -130,6 +131,13 @@ const Footer: React.FC<FooterProps> = ({ onBecomeSeller }) => {
               Abuja • Nigeria
             </div>
           </div>
+        </div>
+
+        <div className="mt-12 py-6 bg-[#121212] rounded-3xl flex flex-col md:flex-row items-center justify-center gap-3 shadow-xl border border-white/10 px-6 text-center">
+          <span className="text-2xl flex items-center justify-center">🍃</span>
+          <p className="text-gray-300 font-sans text-sm font-medium">
+            <span className="font-bold text-white">ortenticsea</span>: powering the circular economy through Grade-A excellence and eco-friendly impact.
+          </p>
         </div>
       </div>
     </footer>

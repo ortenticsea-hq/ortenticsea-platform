@@ -13,21 +13,24 @@ import ChatView from './views/ChatView.tsx';
 import ProfileView from './views/ProfileView.tsx';
 import LoginView from './views/LoginView.tsx';
 import PlaceholderView from './views/PlaceholderView.tsx';
+import VerifyEmailView from './views/VerifyEmailView.tsx';
 import SellerOnboardingView from './views/SellerOnboardingView.tsx';
 import SellerDashboardView from './views/SellerDashboardView.tsx';
 import AdminDashboardView from './views/AdminDashboardView.tsx';
 import SellerToolsView from './views/SellerToolsView.tsx';
+import InfoView from './views/InfoView.tsx';
 import { Product, ViewType, User, CartItem, Review, Seller, SellerApplication, UserRole, SellerStatus, SharedCartComment } from './types.ts';
 import { REVIEWS, PRODUCTS, SELLERS } from './constants.tsx';
 import { AudioService } from './services/audioService.ts';
 import { FirebaseAuthService } from './services/firebaseAuthService.ts';
+import { initializeFirestore } from './services/firestoreInit.ts';
 
 const REVIEWS_STORAGE_KEY = 'ortenticsea_reviews_v1';
 const APPS_STORAGE_KEY = 'ortenticsea_applications_v1';
 const SHARED_COMMENTS_KEY = 'ortenticsea_shared_comments_v1';
 
 const App: React.FC = () => {
-  const [activeView, setActiveView] = useState<ViewType>('home');
+  const [activeView, setActiveView] = useState<ViewType | string>('home');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [selectedSeller, setSelectedSeller] = useState<Seller | null>(null);
@@ -96,6 +99,11 @@ const App: React.FC = () => {
   useEffect(() => {
     localStorage.setItem(APPS_STORAGE_KEY, JSON.stringify(applications));
   }, [applications]);
+
+  // Initialize Firestore on app startup
+  useEffect(() => {
+    initializeFirestore().catch(console.error);
+  }, []);
 
   // Firebase Auth State Listener
   useEffect(() => {
@@ -218,7 +226,7 @@ const App: React.FC = () => {
     window.scrollTo(0, 0);
   }, [currentUser]);
 
-  const handleNavigate = useCallback((v: ViewType) => {
+  const handleNavigate = useCallback((v: ViewType | string) => {
     if (v === 'sell') {
       handleSellClick();
     } else {
@@ -246,6 +254,10 @@ const App: React.FC = () => {
   }, [handleProductClick]);
 
   const renderView = () => {
+    if (typeof activeView === 'string' && activeView.startsWith('page-')) {
+      return <InfoView pageId={activeView.replace('page-', '')} setView={handleNavigate} />;
+    }
+
     switch (activeView) {
       case 'home':
         return <Home setView={handleNavigate} onSearch={handleSearch} onProductClick={handleProductClick} onAddToCart={handleAddToCart} />;
@@ -275,7 +287,9 @@ const App: React.FC = () => {
             onRemove={(id) => setCartItems(prev => prev.filter(i => i.product.id !== id))} 
             onUpdateQty={(id, delta) => setCartItems(prev => prev.map(i => i.product.id === id ? {...i, quantity: Math.max(1, i.quantity + delta)} : i))} 
             onCheckout={() => alert('Checkout flow starting...')} 
-            setView={handleNavigate} 
+            setView={handleNavigate}
+            currentUser={currentUser}
+            onLoginRequired={() => setShowLoginModal(true)}
           />
         );
       case 'shared-cart':
@@ -289,7 +303,9 @@ const App: React.FC = () => {
             onRemove={() => {}} 
             onUpdateQty={() => {}} 
             onCheckout={() => {}} 
-            setView={handleNavigate} 
+            setView={handleNavigate}
+            currentUser={currentUser}
+            onLoginRequired={() => setShowLoginModal(true)}
           />
         );
       case 'chat': 
@@ -371,7 +387,7 @@ const App: React.FC = () => {
         {renderView()}
       </main>
 
-      <Footer onBecomeSeller={handleSellClick} />
+      <Footer onBecomeSeller={handleSellClick} setView={handleNavigate} />
       <ScrollToTop />
 
       <BottomNav 
@@ -382,6 +398,13 @@ const App: React.FC = () => {
           else handleNavigate('profile');
         }}
       />
+
+      {currentUser && !currentUser.emailVerified && (
+        <VerifyEmailView 
+          user={currentUser} 
+          onLogout={() => { FirebaseAuthService.signOut(); setCurrentUser(null); handleNavigate('home'); }} 
+        />
+      )}
 
       {showLoginModal && (
         <LoginView 

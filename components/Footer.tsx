@@ -76,13 +76,20 @@ const Footer: React.FC<FooterProps> = ({ onBecomeSeller, setView }) => {
                       >
                         {link.label}
                       </button>
-                    ) : (
+                    ) : link.view ? (
                       <button
-                        onClick={() => setView && link.view && setView(link.view)}
-                        className="text-[13px] font-medium text-orange-50 hover:text-white hover:underline transition-all"
+                        onClick={() => setView && setView(link.view)}
+                        className="text-[13px] font-medium text-orange-50 hover:text-white hover:underline transition-all text-left w-full"
                       >
                         {link.label}
                       </button>
+                    ) : (
+                      <a
+                        href={link.action || '#'}
+                        className="text-[13px] font-medium text-orange-50 hover:text-white hover:underline transition-all block"
+                      >
+                        {link.label}
+                      </a>
                     )}
                   </li>
                 ))}

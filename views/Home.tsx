@@ -23,8 +23,8 @@ interface HomeProps {
 }
 
 const Home: React.FC<HomeProps> = ({ setView, onSearch, onProductClick, onAddToCart }) => {
-  const trending = PRODUCTS.filter(p => p.isTrending);
-  const newArrivals = PRODUCTS.filter(p => p.isNewArrival);
+  const trending = PRODUCTS.filter(p => p.status === 'approved' && p.isTrending);
+  const newArrivals = PRODUCTS.filter(p => p.status === 'approved' && p.isNewArrival);
   const [carouselIndex, setCarouselIndex] = useState(0);
 
   // Auto-slide logic for Hero Carousel
@@ -47,20 +47,22 @@ const Home: React.FC<HomeProps> = ({ setView, onSearch, onProductClick, onAddToC
     <div className="flex flex-col gap-10 pb-12 relative overflow-hidden">
       {/* Hero Section - Themed in Ortentic Orange */}
       <div className="container mx-auto px-4 mt-2 md:mt-4">
-        <section className="relative overflow-hidden bg-[#F26A21] rounded-[2.5rem] p-6 lg:p-10 text-white lg:min-h-[380px] lg:max-h-[60vh] flex flex-col justify-center shadow-2xl transition-all duration-500">
+        <section className="relative overflow-hidden bg-[#F44307] rounded-[2.5rem] p-6 lg:p-10 text-white lg:min-h-[380px] lg:max-h-[60vh] flex flex-col justify-center shadow-2xl transition-all duration-500">
           <div className="relative z-10 grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
             
             {/* Left: Text Content */}
             <div className="max-w-xl">
               <div className="inline-flex items-center gap-2 bg-white/20 text-white px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest mb-4 border border-white/30 backdrop-blur-sm">
                 <SparklesIcon className="w-3.5 h-3.5" />
-                Trusted in Abuja
+                JUST GRADE A
               </div>
               <h1 className="text-3xl md:text-4xl xl:text-5xl font-black mb-4 leading-tight tracking-tight">
-                Premium Foreign <br/><span className="text-[#0B1E3F]">Used Items</span>
+                treasures from around the world
+
+                {/* <br/><span className="text-[#0B1E3F]"> </span> */}
               </h1>
               <p className="text-white/90 text-base md:text-lg mb-6 max-w-lg leading-relaxed font-medium">
-                Abuja's verified marketplace for high-quality grade-A electronics, designer clothing, and appliances.
+                ortenticsea is Abuja's verified marketplace for high-quality grade-A vechicles, clothing&apparel, shoes, backpacks, e-bikes &more
               </p>
               
               <div className="flex flex-wrap gap-3">
@@ -100,7 +102,7 @@ const Home: React.FC<HomeProps> = ({ setView, onSearch, onProductClick, onAddToC
                     <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-[#0B1E3F]/90 via-[#0B1E3F]/40 to-transparent p-6 pt-16">
                       <div className="flex justify-between items-end">
                         <div>
-                          <span className="text-[9px] font-black uppercase tracking-widest text-[#F26A21] mb-1 block">Trending Now</span>
+                          <span className="text-[9px] font-black uppercase tracking-widest text-[#F44307] mb-1 block">Trending Now</span>
                           <h3 className="text-lg font-bold text-white line-clamp-1">{product.name}</h3>
                           <p className="text-white/70 text-[10px]">{product.condition}</p>
                         </div>
@@ -158,7 +160,7 @@ const Home: React.FC<HomeProps> = ({ setView, onSearch, onProductClick, onAddToC
       {/* Categories */}
       <section className="container mx-auto px-4">
         <h2 className="text-lg font-bold mb-6 flex items-center gap-2">
-          <Squares2X2Icon className="w-5 h-5 text-[#F26A21]" />
+          <Squares2X2Icon className="w-5 h-5 text-[#F44307]" />
           Browse Categories
         </h2>
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-4">
@@ -169,20 +171,20 @@ const Home: React.FC<HomeProps> = ({ setView, onSearch, onProductClick, onAddToC
               className={`p-4 rounded-xl flex flex-col items-center gap-3 border transition-all group shadow-sm hover:shadow-md relative overflow-hidden ${
                 cat.isSpecial 
                   ? 'bg-[#121212] border-violet-500/30' 
-                  : (cat.locked ? 'bg-slate-50 border-slate-200' : 'bg-white border-slate-100 hover:border-[#F26A21]')
+                  : (cat.locked ? 'bg-slate-50 border-slate-200' : 'bg-white border-slate-100 hover:border-[#F44307]')
               }`}
             >
               <div className={`p-3 rounded-lg transition-colors ${
                 cat.isSpecial
                   ? 'bg-violet-500/10 text-violet-400 group-hover:text-violet-300'
-                  : (cat.locked ? 'bg-slate-200 text-slate-400' : 'bg-slate-50 text-[#0B1E3F] group-hover:text-[#F26A21]')
+                  : (cat.locked ? 'bg-slate-200 text-slate-400' : 'bg-slate-50 text-[#0B1E3F] group-hover:text-[#F44307]')
               }`}>
                 {React.cloneElement(cat.icon as React.ReactElement<any>, { className: "w-6 h-6" })}
               </div>
               <span className={`font-semibold text-xs transition-colors ${
                 cat.isSpecial
                   ? 'text-violet-400 group-hover:text-violet-300'
-                  : (cat.locked ? 'text-slate-400' : 'text-slate-600 group-hover:text-[#F26A21]')
+                  : (cat.locked ? 'text-slate-400' : 'text-slate-600 group-hover:text-[#F44307]')
               }`}>
                 {cat.name}
               </span>
@@ -200,12 +202,12 @@ const Home: React.FC<HomeProps> = ({ setView, onSearch, onProductClick, onAddToC
       <section className="container mx-auto px-4">
         <div className="flex items-center justify-between mb-8">
           <h2 className="text-lg font-bold flex items-center gap-2">
-            <FireIcon className="w-5 h-5 text-[#F26A21]" />
+            <FireIcon className="w-5 h-5 text-[#F44307]" />
             Trending Products
           </h2>
           <button 
             onClick={() => setView('categories')}
-            className="text-sm font-semibold text-[#F26A21] hover:underline"
+            className="text-sm font-semibold text-[#F44307] hover:underline"
           >
             View All
           </button>
@@ -226,12 +228,12 @@ const Home: React.FC<HomeProps> = ({ setView, onSearch, onProductClick, onAddToC
       <section className="container mx-auto px-4">
         <div className="flex items-center justify-between mb-8">
           <h2 className="text-lg font-bold flex items-center gap-2">
-            <RocketLaunchIcon className="w-5 h-5 text-[#F26A21]" />
-            New Arrivals
+            <RocketLaunchIcon className="w-5 h-5 text-[#F44307]" />
+.            New Arrivals
           </h2>
           <button 
             onClick={() => setView('categories')}
-            className="text-sm font-semibold text-[#F26A21] hover:underline"
+            className="text-sm font-semibold text-[#F44307] hover:underline"
           >
             Browse New
           </button>
@@ -257,11 +259,11 @@ const Home: React.FC<HomeProps> = ({ setView, onSearch, onProductClick, onAddToC
           </div>
           <button 
             onClick={() => setView('sell')}
-            className="relative z-10 bg-white text-[#0B1E3F] px-10 py-4 rounded-2xl font-black text-sm whitespace-nowrap hover:bg-[#F26A21] hover:text-white transition-all shadow-xl active:scale-95"
+            className="relative z-10 bg-white text-[#0B1E3F] px-10 py-4 rounded-2xl font-black text-sm whitespace-nowrap hover:bg-[#F44307] hover:text-white transition-all shadow-xl active:scale-95"
           >
             Apply to Sell
           </button>
-          <div className="absolute top-0 right-0 w-64 h-64 bg-[#F26A21] rounded-full translate-x-32 -translate-y-32 opacity-10"></div>
+          <div className="absolute top-0 right-0 w-64 h-64 bg-[#F44307] rounded-full translate-x-32 -translate-y-32 opacity-10"></div>
         </div>
       </section>
     </div>

@@ -18,3 +18,14 @@ View your app in AI Studio: https://ai.studio/apps/drive/1u7L0tJqjMFnTweKgfXr6EJ
 2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
 3. Run the app:
    `npm run dev`
+
+## Admin Claims Setup (Do Not Commit Keys)
+
+To grant admin access, we use Firebase custom claims. Keep your service account JSON private and local:
+
+1. Download a Firebase Admin SDK service account JSON.
+2. Save it to `scripts/serviceAccount.json` (this path is gitignored).
+3. Run:
+   `npm run admin:claims`
+
+This sets the `role: 'admin'` claim for the configured admin emails in `scripts/setAdminClaims.mjs`.

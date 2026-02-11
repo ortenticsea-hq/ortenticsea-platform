@@ -6,12 +6,15 @@ import { User } from '../types';
 interface VerifyEmailViewProps {
   user: User;
   onLogout: () => void;
+  onRefresh: () => Promise<User | null>;
 }
 
-const VerifyEmailView: React.FC<VerifyEmailViewProps> = ({ user, onLogout }) => {
+const VerifyEmailView: React.FC<VerifyEmailViewProps> = ({ user, onLogout, onRefresh }) => {
   const [sent, setSent] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [verified, setVerified] = useState(false);
 
   const handleSend = async () => {
     setLoading(true);
@@ -26,8 +29,20 @@ const VerifyEmailView: React.FC<VerifyEmailViewProps> = ({ user, onLogout }) => 
     }
   };
 
-  const handleReload = () => {
-    window.location.reload();
+  const handleReload = async () => {
+    setRefreshing(true);
+    setError('');
+    setVerified(false);
+    try {
+      const refreshed = await onRefresh();
+      if (refreshed?.emailVerified) {
+        setVerified(true);
+      }
+    } catch (err: any) {
+      setError(err.message || 'Failed to refresh verification status');
+    } finally {
+      setRefreshing(false);
+    }
   };
 
   return (
@@ -55,14 +70,20 @@ const VerifyEmailView: React.FC<VerifyEmailViewProps> = ({ user, onLogout }) => 
           </div>
         )}
 
+        {verified && (
+          <div className="bg-green-50 text-green-700 p-3 rounded-xl text-xs mb-4 border border-green-100">
+            Email verified successfully. You can continue using the app.
+          </div>
+        )}
+
         <div className="space-y-3">
           <button onClick={handleSend} disabled={loading || sent} className="w-full bg-[#F26A21] text-white py-3.5 rounded-xl font-bold hover:bg-orange-600 transition-all disabled:opacity-50 shadow-lg shadow-orange-500/20">
             {loading ? 'Sending...' : sent ? 'Email Sent' : 'Resend Verification Email'}
           </button>
 
-          <button onClick={handleReload} className="w-full bg-white border-2 border-gray-100 text-[#0B1E3F] py-3.5 rounded-xl font-bold hover:bg-gray-50 transition-all flex items-center justify-center gap-2">
+          <button onClick={handleReload} disabled={refreshing} className="w-full bg-white border-2 border-gray-100 text-[#0B1E3F] py-3.5 rounded-xl font-bold hover:bg-gray-50 transition-all flex items-center justify-center gap-2 disabled:opacity-50">
             <ArrowPathIcon className="w-5 h-5" />
-            I've Verified, Refresh App
+            {refreshing ? 'Refreshing...' : "I've Verified, Refresh App"}
           </button>
 
           <button onClick={onLogout} className="text-gray-400 text-xs hover:text-white transition-colors mt-4 underline">

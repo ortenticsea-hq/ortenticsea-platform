@@ -23,8 +23,8 @@ This document serves as the central project management tracker for the "Abuja-Re
 
 | Phase | Focus | Status | Completion % |
 | :--- | :--- | :--- | :--- |
-| **A** | Authentication |  In Progress | 20% |
-| **B** | Real-time DB | 🟡 In Progress | 40% |
+| **A** | Authentication | 🟢 Complete | 100% |
+| **B** | Real-time DB | 🟢 Complete | 90% |
 | **C** | Payments | 🔴 Pending | 0% |
 | **D** | Media Storage | 🔴 Pending | 0% |
 | **E** | Deployment | 🔴 Pending | 0% |
@@ -53,17 +53,22 @@ This document serves as the central project management tracker for the "Abuja-Re
 **Goal**: Persist data and enable real-time updates for the marketplace.
 
 - [x] **Schema Design**: Define TypeScript interfaces for all collections. (Done in `types.ts`)
-- [ ] **Users Collection**: Sync Auth profiles to `users/{userId}`.
-- [ ] **Products Collection**:
-    - [ ] Migrate mock products to Firestore.
+- [x] **Users Collection**: Sync Auth profiles to `users/{userId}`. (Done in `services/firebaseAuthService.ts`)
+- [x] **Products Collection**:
+    - [x] Migrate mock products to Firestore.
     - [x] Create `ProductService` for CRUD operations. (Done in `services/firestoreService.ts`)
-- [ ] **Applications Collection**: Store Seller KYC data.
+- [x] **Applications Collection**: Store Seller KYC data. (Done with real-time subscriptions)
+- [x] **Inventory Collection**: Seller inventory management. (Done in `services/sellerToolsService.ts`)
+- [x] **Reviews Collection**: Product and seller reviews with real-time updates.
+- [x] **Shared Cart Comments**: Real-time comments on shared carts.
 - [ ] **Transactions Collection**: Ledger for sales and escrow status.
 - [ ] **Conversations**: Implement chat persistence.
-- [ ] **Hooks**: Create custom hooks (e.g., `useProducts`, `useUser`).
+- [x] **Hooks**: Create custom hooks (e.g., `useProducts`, `useUser`). (Done in `hooks/useFirestore.ts`)
 
 **Success Criteria**:
-> A product added by a seller appears instantly on the buyer's feed without refresh.
+> A product added by a seller appears instantly on the buyer's feed without refresh. ✅
+
+**Migration Documentation**: See [`docs/FIRESTORE_MIGRATION.md`](../FIRESTORE_MIGRATION.md)
 
 ---
 

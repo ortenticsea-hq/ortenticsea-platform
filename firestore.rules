@@ -1,0 +1,280 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper functions for role checking
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    function isAdminClaim() {
+      return isAuthenticated() && request.auth.token.role == 'admin';
+    }
+
+    function isAdmin() {
+      return isAdminClaim();
+    }
+    
+    function isSeller() {
+      return isAuthenticated() &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'seller';
+    }
+    
+    function isSellerOrAdmin() {
+      return isSeller() || isAdmin();
+    }
+
+    function isShopApproved() {
+      return isAuthenticated() &&
+             get(/databases/$(database)/documents/shops/$(request.auth.uid)).data.status == 'APPROVED';
+    }
+    
+    // Validate email format
+    function isValidEmail(email) {
+      return email.matches('^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$');
+    }
+    
+    // ===== USERS COLLECTION =====
+    // Users can read their own profile, admins can read all
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if isOwner(userId) &&
+                      request.resource.data.id == userId &&
+                      request.resource.data.email is string &&
+                      isValidEmail(request.resource.data.email) &&
+                      request.resource.data.role == 'buyer' &&
+                      request.resource.data.emailVerified is bool;
+      allow create: if isOwner(userId) &&
+                      request.resource.data.id == userId &&
+                      request.resource.data.email is string &&
+                      isValidEmail(request.resource.data.email) &&
+                      request.resource.data.role == 'admin' &&
+                      isAdminClaim() &&
+                      request.resource.data.emailVerified is bool;
+      // Owners can only update safe profile fields.
+      // role/sellerStatus/rejectionReason are admin-only.
+      allow update: if isAdmin() ||
+                      (isOwner(userId) &&
+                       request.resource.data.role == resource.data.role &&
+                       request.resource.data.id == resource.data.id &&
+                       request.resource.data.email == resource.data.email &&
+                       request.resource.data.emailVerified == resource.data.emailVerified &&
+                       request.resource.data.diff(resource.data).affectedKeys()
+                         .hasOnly(['name', 'phone', 'location']));
+      allow delete: if isAdmin();
+    }
+    
+    // ===== PRODUCTS COLLECTION =====
+    // Products are publicly readable, sellers can create/update their own
+    match /products/{productId} {
+      allow read: if true;
+      allow create: if isSellerOrAdmin() &&
+                      request.resource.data.sellerId == request.auth.uid &&
+                      request.resource.data.shopId == request.auth.uid &&
+                      request.resource.data.name is string &&
+                      request.resource.data.price is number &&
+                      request.resource.data.price > 0 &&
+                      request.resource.data.status == 'pending' &&
+                      isShopApproved();
+      // Sellers can update only safe fields on their own products.
+      allow update: if (isAdmin() &&
+                        request.resource.data.status in ['pending', 'approved', 'rejected'] &&
+                        (request.resource.data.status != 'rejected' ||
+                         (request.resource.data.rejectionReason is string &&
+                          request.resource.data.rejectionReason.size() > 0))) ||
+                      (isSellerOrAdmin() &&
+                       resource.data.sellerId == request.auth.uid &&
+                       request.resource.data.sellerId == resource.data.sellerId &&
+                       request.resource.data.status == resource.data.status &&
+                       request.resource.data.diff(resource.data).affectedKeys()
+                         .hasOnly(['name', 'price', 'condition', 'images', 'category', 'description', 'isTrending', 'isNewArrival']));
+      allow delete: if (resource.data.sellerId == request.auth.uid) || isAdmin();
+    }
+    
+    // ===== SELLERS COLLECTION =====
+    // Publicly readable, sellers can update their own profile
+    match /sellers/{sellerId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && request.resource.data.id == request.auth.uid;
+      allow update: if isOwner(sellerId) || isAdmin();
+      allow delete: if isAdmin();
+    }
+    
+    // ===== CATEGORIES COLLECTION =====
+    // Publicly readable, only admins can modify
+    match /categories/{categoryId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    
+    // ===== REVIEWS COLLECTION =====
+    // Anyone can read, authenticated users can create, owners can update/delete their own
+    match /reviews/{reviewId} {
+      allow read: if true;
+      allow create: if isAuthenticated() &&
+                      request.resource.data.userId == request.auth.uid &&
+                      request.resource.data.rating is number &&
+                      request.resource.data.rating >= 1 &&
+                      request.resource.data.rating <= 5 &&
+                      request.resource.data.targetType in ['product', 'seller'];
+      allow update, delete: if isOwner(resource.data.userId) || isAdmin();
+    }
+    
+    // ===== APPLICATIONS COLLECTION =====
+    // Users can read their own applications, admins can read/manage all
+    match /applications/{applicationId} {
+      allow read: if isOwner(resource.data.userId) || isAdmin();
+      allow create: if isAuthenticated() &&
+                      request.resource.data.userId == request.auth.uid &&
+                      request.resource.data.status == 'pending' &&
+                      request.resource.data.shopName is string &&
+                      request.resource.data.phone is string &&
+                      isValidEmail(request.resource.data.email);
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // ===== SHOPS COLLECTION =====
+    match /shops/{shopId} {
+      allow read: if isOwner(shopId) || isAdmin();
+      allow create: if isOwner(shopId) &&
+                      request.resource.data.status in ['DRAFT', 'SUBMITTED'] &&
+                      request.resource.data.ownerId == request.auth.uid;
+      allow update: if isAdmin() ||
+                      (isOwner(shopId) &&
+                       request.resource.data.ownerId == request.auth.uid &&
+                       resource.data.status in ['DRAFT', 'SUBMITTED', 'REJECTED'] &&
+                       request.resource.data.status in ['DRAFT', 'SUBMITTED'] &&
+                       request.resource.data.diff(resource.data).affectedKeys()
+                         .hasOnly(['shopName', 'description', 'status', 'rejectionReason', 'shopType', 'createdAt']));
+      allow delete: if isAdmin();
+    }
+
+    // ===== SHOP DOCUMENTS COLLECTION =====
+    match /shopDocuments/{docId} {
+      allow read: if isAuthenticated() &&
+                    (resource.data.shopId == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() &&
+                      request.resource.data.shopId == request.auth.uid &&
+                      request.resource.data.documentType in ['ID', 'CAC', 'ADDRESS'] &&
+                      request.resource.data.fileUrl is string &&
+                      request.resource.data.verified == false;
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+    
+    // ===== INVENTORY COLLECTION =====
+    // Sellers can only access their own inventory
+    match /inventory/{itemId} {
+      allow read: if isAuthenticated() && 
+                    (resource.data.sellerId == request.auth.uid || isAdmin());
+      allow create: if isSellerOrAdmin() &&
+                      request.resource.data.sellerId == request.auth.uid &&
+                      request.resource.data.name is string &&
+                      request.resource.data.purchasePrice is number &&
+                      request.resource.data.expectedPrice is number &&
+                      request.resource.data.status in ['available', 'sold'];
+      allow update: if isSellerOrAdmin() && 
+                      resource.data.sellerId == request.auth.uid;
+      allow delete: if (resource.data.sellerId == request.auth.uid) || isAdmin();
+    }
+    
+    // ===== SHARED CART COMMENTS COLLECTION =====
+    // Anyone can read comments for a cart they have access to
+    // Authenticated users can add comments
+    match /sharedCartComments/{commentId} {
+      allow read: if true; // Cart sharing is public by design
+      allow create: if isAuthenticated() &&
+                      request.resource.data.cartId is string &&
+                      request.resource.data.userName is string &&
+                      request.resource.data.text is string &&
+                      request.resource.data.timestamp is string;
+      allow update: if false; // Comments are immutable
+      allow delete: if isAdmin();
+    }
+    
+    // ===== REPORTS COLLECTION =====
+    // Anyone can create reports, admins can read/manage
+    match /reports/{reportId} {
+      allow create: if isAuthenticated() &&
+                      request.resource.data.targetType in ['product', 'seller'] &&
+                      request.resource.data.reason is string &&
+                      request.resource.data.status == 'open';
+      allow read, update, delete: if isAdmin();
+    }
+    
+    // ===== TRANSACTIONS COLLECTION (Future) =====
+    // Users can read their own transactions, admins can read all
+    match /transactions/{transactionId} {
+      allow read: if isAuthenticated() && 
+                    (resource.data.buyerId == request.auth.uid || 
+                     resource.data.sellerId == request.auth.uid || 
+                     isAdmin());
+      allow create: if isAuthenticated();
+      allow update: if isAdmin(); // Only admins can update transaction status
+      allow delete: if false; // Transactions are immutable
+    }
+    
+    // ===== SHARED CARTS COLLECTION =====
+    // Public read access with strict validation
+    // Only owners can write/update/delete
+    match /sharedCarts/{shareId} {
+      // Public can read if:
+      // - Cart is not locked
+      // - Cart is not expired (or has no expiry)
+      allow read: if !resource.data.locked &&
+                    (resource.data.expiresAt == null ||
+                     request.time < resource.data.expiresAt);
+      
+      // Only authenticated users can create shared carts
+      allow create: if isAuthenticated() &&
+                      request.resource.data.ownerId == request.auth.uid &&
+                      request.resource.data.locked == false &&
+                      request.resource.data.items is list &&
+                      request.resource.data.createdAt == request.time;
+      
+      // Only owner can update (lock) their shared cart
+      allow update: if isAuthenticated() &&
+                      resource.data.ownerId == request.auth.uid &&
+                      // Can only update locked field
+                      request.resource.data.diff(resource.data).affectedKeys().hasOnly(['locked']) &&
+                      // Can only set locked to true (irreversible)
+                      request.resource.data.locked == true;
+      
+      // Only owner can delete their shared cart
+      allow delete: if isAuthenticated() &&
+                      resource.data.ownerId == request.auth.uid;
+    }
+    
+    // ===== CONVERSATIONS COLLECTION (Future) =====
+    // Users can only access conversations they're part of
+    match /conversations/{conversationId} {
+      allow read: if isAuthenticated() && 
+                    (request.auth.uid in resource.data.participants || isAdmin());
+      allow create: if isAuthenticated() &&
+                      request.auth.uid in request.resource.data.participants;
+      allow update: if isAuthenticated() && 
+                      request.auth.uid in resource.data.participants;
+      allow delete: if isAdmin();
+      
+      // Messages subcollection
+      match /messages/{messageId} {
+        allow read: if isAuthenticated() && 
+                      request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participants;
+        allow create: if isAuthenticated() && 
+                        request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participants &&
+                        request.resource.data.senderId == request.auth.uid;
+        allow update, delete: if false; // Messages are immutable
+      }
+    }
+    
+    // Deny all other access by default
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

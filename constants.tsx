@@ -159,7 +159,7 @@ export const PRODUCTS: Product[] = [
     category: 'Phones',
     description: 'UK used iPhone 13 Pro Max. Graphite color, 256GB storage. 100% Battery health. No scratches.',
     isTrending: true,
-    status: 'live'
+    status: 'approved'
   },
   {
     id: 'p2',
@@ -171,7 +171,7 @@ export const PRODUCTS: Product[] = [
     category: 'Laptops',
     description: '13-inch MacBook Pro with M1 chip. 8GB RAM, 256GB SSD. Perfect for students and professionals.',
     isTrending: true,
-    status: 'live'
+    status: 'approved'
   },
   {
     id: 'p14',
@@ -184,7 +184,7 @@ export const PRODUCTS: Product[] = [
     description: 'Classic Levi\'s 501s. Heavyweight denim, straight leg. Grade-A UK used quality.',
     isNewArrival: true,
     isTrending: true,
-    status: 'live'
+    status: 'approved'
   },
   {
     id: 'p100',
@@ -195,7 +195,7 @@ export const PRODUCTS: Product[] = [
     sellerId: 's4',
     category: 'Laptops',
     description: 'RTX 3080 Gaming beast. Only used for 2 weeks.',
-    status: 'pending_approval',
+    status: 'pending',
     submittedAt: '2023-11-20T09:00:00Z'
   },
   {
@@ -207,7 +207,7 @@ export const PRODUCTS: Product[] = [
     sellerId: 's1',
     category: 'Other',
     description: 'Luxury watch, pre-owned but mint.',
-    status: 'pending_approval',
+    status: 'pending',
     submittedAt: '2023-11-21T11:00:00Z'
   }
 ];

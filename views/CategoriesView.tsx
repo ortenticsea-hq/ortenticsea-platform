@@ -25,7 +25,7 @@ const CategoriesView: React.FC<CategoriesViewProps> = ({ initialSearchQuery = ''
   );
 
   const filteredProducts = useMemo(() => {
-    let list = PRODUCTS;
+    let list = PRODUCTS.filter(p => p.status === 'approved');
     
     // Filter by keyword if searchFilter exists
     if (searchFilter.trim()) {
@@ -117,7 +117,7 @@ const CategoriesView: React.FC<CategoriesViewProps> = ({ initialSearchQuery = ''
                   onClick={() => setSelectedCat(cat.name)}
                   className={`px-4 py-2.5 rounded-xl text-sm font-bold transition-all text-left flex items-center justify-between group ${
                     selectedCat === cat.name 
-                      ? (cat.isSpecial ? 'bg-violet-600 text-white shadow-md' : 'bg-[#F26A21] text-white shadow-md') 
+                      ? (cat.isSpecial ? 'bg-violet-600 text-white shadow-md' : 'bg-[#F44307] text-white shadow-md') 
                       : (cat.isSpecial ? 'bg-zinc-800 text-violet-400 border border-violet-500/20' : 'bg-transparent text-gray-500 hover:bg-gray-100')
                   }`}
                 >
@@ -131,11 +131,11 @@ const CategoriesView: React.FC<CategoriesViewProps> = ({ initialSearchQuery = ''
             </div>
             
             {searchFilter && (
-              <div className="mt-8 p-4 bg-orange-50 rounded-2xl border border-orange-100">
-                <p className="text-[10px] font-bold text-[#F26A21] uppercase tracking-widest mb-1">Search active</p>
+              <div className="mt-8 p-4 bg-[#F44307]/10 rounded-2xl border border-[#F44307]/20">
+                <p className="text-[10px] font-bold text-[#F44307] uppercase tracking-widest mb-1">Search active</p>
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-bold truncate">"{searchFilter}"</span>
-                  <button onClick={() => setSearchFilter('')} className="text-[#F26A21] text-xs hover:underline">Clear</button>
+                  <button onClick={() => setSearchFilter('')} className="text-[#F44307] text-xs hover:underline">Clear</button>
                 </div>
               </div>
             )}

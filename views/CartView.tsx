@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { CartItem, ViewType, SharedCartComment } from '../types';
+import { CartItem, ViewType } from '../types';
 import { 
   ShoppingBagIcon, 
   TrashIcon, 
@@ -9,10 +9,11 @@ import {
   ArrowRightIcon, 
   ShareIcon, 
   CheckIcon,
-  ChatBubbleBottomCenterTextIcon,
-  PaperAirplaneIcon
+  LockClosedIcon,
+  ArrowPathIcon
 } from '@heroicons/react/24/outline';
 import { User } from '../types';
+import { SharedCartService } from '../services/sharedCartService';
 
 interface CartViewProps {
   items: CartItem[];
@@ -20,10 +21,6 @@ interface CartViewProps {
   onUpdateQty: (id: string, delta: number) => void;
   onCheckout: () => void;
   setView: (v: ViewType) => void;
-  isShared?: boolean;
-  sharedId?: string;
-  comments?: SharedCartComment[];
-  onAddComment?: (text: string) => void;
   currentUser?: User | null;
   onLoginRequired?: () => void;
 }
@@ -34,39 +31,108 @@ const CartView: React.FC<CartViewProps> = ({
   onUpdateQty, 
   onCheckout, 
   setView,
-  isShared = false,
-  sharedId,
-  comments = [],
-  onAddComment,
   currentUser,
   onLoginRequired
 }) => {
   const [copied, setCopied] = useState(false);
-  const [newComment, setNewComment] = useState('');
+  const [sharing, setSharing] = useState(false);
+  const [currentShareId, setCurrentShareId] = useState<string | null>(null);
   const total = items.reduce((sum, item) => sum + (item.product.price * item.quantity), 0);
 
-  const handleShare = () => {
+  /**
+   * Create a new shared cart snapshot
+   * Uses production-grade SharedCartService
+   */
+  const handleShare = async () => {
     if (!currentUser) {
       onLoginRequired?.();
       return;
     }
 
-    const data = items.map(item => ({ id: item.product.id, qty: item.quantity }));
-    const encoded = btoa(JSON.stringify(data));
-    const uniqueId = sharedId || Math.random().toString(36).substr(2, 9);
-    const shareUrl = `${window.location.origin}${window.location.pathname}?view=shared-cart&id=${uniqueId}&data=${encoded}`;
-    
-    navigator.clipboard.writeText(shareUrl).then(() => {
+    if (items.length === 0) {
+      alert('Cannot share an empty cart');
+      return;
+    }
+
+    setSharing(true);
+
+    try {
+      // Create shared cart snapshot in Firestore
+      const shareId = await SharedCartService.createSharedCart(
+        currentUser.id,
+        items,
+        24 // 24 hours expiry
+      );
+
+      // Generate shareable URL
+      const shareUrl = SharedCartService.generateShareUrl(shareId);
+
+      // Copy to clipboard
+      await navigator.clipboard.writeText(shareUrl);
+
+      // Store share ID for management
+      setCurrentShareId(shareId);
       setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    });
+      setTimeout(() => setCopied(false), 3000);
+    } catch (error) {
+      console.error('Error sharing cart:', error);
+      alert('Failed to create share link. Please try again.');
+    } finally {
+      setSharing(false);
+    }
   };
 
-  const handleCommentSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (newComment.trim() && onAddComment) {
-      onAddComment(newComment);
-      setNewComment('');
+  /**
+   * Lock the current shared cart (revoke access)
+   */
+  const handleLockShare = async () => {
+    if (!currentShareId || !currentUser) return;
+
+    if (!confirm('Are you sure you want to revoke access to this shared cart? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      await SharedCartService.lockSharedCart(currentShareId, currentUser.id);
+      setCurrentShareId(null);
+      alert('Shared cart access has been revoked');
+    } catch (error) {
+      console.error('Error locking shared cart:', error);
+      alert('Failed to revoke access. Please try again.');
+    }
+  };
+
+  /**
+   * Regenerate a new share link (invalidates old one)
+   */
+  const handleRegenerateLink = async () => {
+    if (!currentShareId || !currentUser) return;
+
+    if (!confirm('This will create a new link and invalidate the old one. Continue?')) {
+      return;
+    }
+
+    setSharing(true);
+
+    try {
+      const newShareId = await SharedCartService.regenerateShareLink(
+        currentShareId,
+        currentUser.id,
+        items,
+        24
+      );
+
+      const shareUrl = SharedCartService.generateShareUrl(newShareId);
+      await navigator.clipboard.writeText(shareUrl);
+
+      setCurrentShareId(newShareId);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 3000);
+    } catch (error) {
+      console.error('Error regenerating link:', error);
+      alert('Failed to regenerate link. Please try again.');
+    } finally {
+      setSharing(false);
     }
   };
 
@@ -76,11 +142,11 @@ const CartView: React.FC<CartViewProps> = ({
         <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center text-gray-400 mb-6">
           <ShoppingBagIcon className="w-12 h-12" />
         </div>
-        <h2 className="text-2xl font-bold font-poppins mb-2">{isShared ? 'Shared cart is empty' : 'Your cart is empty'}</h2>
+        <h2 className="text-2xl font-bold font-poppins mb-2">Your cart is empty</h2>
         <p className="text-gray-500 mb-8 max-w-xs">Looks like you haven't added any quality items to your cart yet.</p>
         <button 
           onClick={() => setView('home')}
-          className="bg-[#F26A21] text-white px-8 py-3 rounded-xl font-bold transition-all hover:bg-orange-600"
+          className="bg-[#F44307] text-white px-8 py-3 rounded-xl font-bold transition-all hover:bg-[#D83A06]"
         >
           Start Shopping
         </button>
@@ -92,21 +158,57 @@ const CartView: React.FC<CartViewProps> = ({
     <div className="container mx-auto px-4 py-12">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4">
         <div>
-          <h1 className="text-3xl font-bold font-poppins">{isShared ? 'Shared Shopping Cart' : 'Shopping Cart'}</h1>
-          {isShared && <p className="text-gray-500 text-sm mt-1">A friend shared these Abuja finds with you!</p>}
+          <h1 className="text-3xl font-bold font-poppins">Shopping Cart</h1>
         </div>
         
-        {!isShared && (
+        {/* Share Controls */}
+        <div className="flex gap-2">
           <button 
             onClick={handleShare}
+            disabled={sharing}
             className={`flex items-center gap-2 px-6 py-3 rounded-2xl font-bold text-sm transition-all shadow-sm ${
-              copied ? 'bg-green-500 text-white' : 'bg-white border border-[#F26A21] text-[#F26A21] hover:bg-orange-50'
-            }`}
+              copied ? 'bg-green-500 text-white' : 'bg-white border border-[#F44307] text-[#F44307] hover:bg-[#F44307]/10'
+            } ${sharing ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
-            {copied ? <CheckIcon className="w-5 h-5" /> : <ShareIcon className="w-5 h-5" />}
-            {copied ? 'Link Copied!' : 'Share Cart for Feedback'}
+            {sharing ? (
+              <>
+                <div className="w-5 h-5 border-2 border-[#F44307] border-t-transparent rounded-full animate-spin"></div>
+                Creating Link...
+              </>
+            ) : copied ? (
+              <>
+                <CheckIcon className="w-5 h-5" />
+                Link Copied!
+              </>
+            ) : (
+              <>
+                <ShareIcon className="w-5 h-5" />
+                Share Cart
+              </>
+            )}
           </button>
-        )}
+
+          {currentShareId && (
+            <>
+              <button 
+                onClick={handleRegenerateLink}
+                disabled={sharing}
+                className="flex items-center gap-2 px-4 py-3 rounded-2xl font-bold text-sm transition-all shadow-sm bg-white border border-gray-300 text-gray-700 hover:bg-gray-50"
+                title="Generate new link (invalidates old one)"
+              >
+                <ArrowPathIcon className="w-5 h-5" />
+              </button>
+              
+              <button 
+                onClick={handleLockShare}
+                className="flex items-center gap-2 px-4 py-3 rounded-2xl font-bold text-sm transition-all shadow-sm bg-white border border-red-300 text-red-600 hover:bg-red-50"
+                title="Revoke access to shared cart"
+              >
+                <LockClosedIcon className="w-5 h-5" />
+              </button>
+            </>
+          )}
+        </div>
       </div>
       
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
@@ -121,148 +223,66 @@ const CartView: React.FC<CartViewProps> = ({
                 <div className="flex-grow">
                   <div className="flex justify-between items-start mb-1">
                     <h3 className="font-semibold text-[#0B1E3F]">{item.product.name}</h3>
-                    {!isShared && (
-                      <button onClick={() => onRemove(item.product.id)} className="text-gray-400 hover:text-red-500">
-                        <TrashIcon className="w-5 h-5" />
-                      </button>
-                    )}
+                    <button onClick={() => onRemove(item.product.id)} className="text-gray-400 hover:text-red-500">
+                      <TrashIcon className="w-5 h-5" />
+                    </button>
                   </div>
                   <p className="text-sm text-gray-500 mb-3">{item.product.condition}</p>
                   <div className="flex justify-between items-end">
-                    <div className={`flex items-center gap-3 bg-gray-50 p-1 rounded-lg ${isShared ? 'px-3 py-1.5' : ''}`}>
-                      {!isShared && (
-                        <button 
-                          onClick={() => onUpdateQty(item.product.id, -1)}
-                          className="p-1 hover:bg-white rounded transition-colors disabled:opacity-30"
-                          disabled={item.quantity <= 1}
-                        >
-                          <MinusIcon className="w-4 h-4" />
-                        </button>
-                      )}
-                      <span className="text-sm font-bold w-4 text-center">{isShared ? `Qty: ${item.quantity}` : item.quantity}</span>
-                      {!isShared && (
-                        <button 
-                          onClick={() => onUpdateQty(item.product.id, 1)}
-                          className="p-1 hover:bg-white rounded transition-colors"
-                        >
-                          <PlusIcon className="w-4 h-4" />
-                        </button>
-                      )}
+                    <div className="flex items-center gap-3 bg-gray-50 p-1 rounded-lg">
+                      <button 
+                        onClick={() => onUpdateQty(item.product.id, -1)}
+                        className="p-1 hover:bg-white rounded transition-colors disabled:opacity-30"
+                        disabled={item.quantity <= 1}
+                      >
+                        <MinusIcon className="w-4 h-4" />
+                      </button>
+                      <span className="text-sm font-bold w-4 text-center">{item.quantity}</span>
+                      <button 
+                        onClick={() => onUpdateQty(item.product.id, 1)}
+                        className="p-1 hover:bg-white rounded transition-colors"
+                      >
+                        <PlusIcon className="w-4 h-4" />
+                      </button>
                     </div>
-                    <span className="font-bold text-[#F26A21]">₦{(item.product.price * item.quantity).toLocaleString()}</span>
+                    <p className="text-lg font-bold text-[#F44307]">
+                      ₦{(item.product.price * item.quantity).toLocaleString()}
+                    </p>
                   </div>
                 </div>
               </div>
             ))}
           </div>
-
-          {/* Collaborative Comment Section */}
-          <div className="mt-12 bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
-            <div className="p-6 border-b border-gray-100 bg-orange-50/30 flex items-center gap-2">
-              <ChatBubbleBottomCenterTextIcon className="w-5 h-5 text-[#F26A21]" />
-              <h3 className="font-bold text-[#0B1E3F]">Collaborative Feedback</h3>
-            </div>
-            
-            <div className="p-6 space-y-6">
-              {comments.length === 0 ? (
-                <div className="text-center py-8">
-                  <p className="text-gray-400 text-sm">No comments yet. Be the first to drop a suggestion!</p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {comments.map((comment) => (
-                    <div key={comment.id} className="flex gap-3">
-                      <div className="w-8 h-8 rounded-full bg-[#0B1E3F] text-white flex items-center justify-center text-xs font-bold flex-shrink-0">
-                        {comment.userName.charAt(0)}
-                      </div>
-                      <div className="bg-gray-50 p-3 rounded-2xl rounded-tl-none flex-grow">
-                        <div className="flex justify-between items-center mb-1">
-                          <span className="text-[10px] font-bold text-[#0B1E3F] uppercase tracking-wider">{comment.userName}</span>
-                          <span className="text-[9px] text-gray-400">{new Date(comment.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                        </div>
-                        <p className="text-sm text-gray-700">{comment.text}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {isShared && (
-                <form onSubmit={handleCommentSubmit} className="relative mt-4">
-                  <input 
-                    type="text"
-                    value={newComment}
-                    onChange={(e) => setNewComment(e.target.value)}
-                    placeholder="Wetin you think about these items? Drop a comment..."
-                    className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 pr-12 focus:outline-none focus:ring-2 focus:ring-[#F26A21] transition-all text-sm"
-                  />
-                  <button 
-                    type="submit"
-                    disabled={!newComment.trim()}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 p-2 text-[#F26A21] hover:bg-orange-100 rounded-full transition-all disabled:opacity-30"
-                  >
-                    <PaperAirplaneIcon className="w-5 h-5" />
-                  </button>
-                </form>
-              )}
-              
-              {!isShared && (
-                <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 flex items-start gap-3">
-                  <ShareIcon className="w-5 h-5 text-blue-500 mt-0.5" />
-                  <p className="text-xs text-blue-700 leading-relaxed">
-                    Share this cart with your friends in Abuja! They can see your selection and drop comments to help you decide on the best items.
-                  </p>
-                </div>
-              )}
-            </div>
-          </div>
         </div>
 
         <div className="lg:col-span-1">
-          <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-md sticky top-24">
-            <h3 className="text-xl font-bold mb-6">Order Summary</h3>
-            <div className="space-y-4 mb-8">
-              <div className="flex justify-between text-gray-500">
-                <span>Subtotal</span>
+          <div className="bg-white p-8 rounded-2xl border border-gray-100 shadow-sm sticky top-24">
+            <h2 className="text-xl font-bold font-poppins mb-6">Cart Summary</h2>
+            
+            <div className="space-y-4 mb-6">
+              <div className="flex justify-between text-gray-600">
+                <span>Items ({items.length})</span>
                 <span>₦{total.toLocaleString()}</span>
               </div>
-              <div className="flex justify-between text-gray-500">
-                <span>Shipping (Abuja)</span>
-                <span className="text-green-600 font-medium">Free</span>
-              </div>
-              <div className="pt-4 border-t border-gray-100 flex justify-between font-bold text-xl">
+              <div className="border-t pt-4 flex justify-between text-lg font-bold">
                 <span>Total</span>
-                <span className="text-[#F26A21]">₦{total.toLocaleString()}</span>
+                <span className="text-[#F44307]">₦{total.toLocaleString()}</span>
               </div>
             </div>
-            
-            {!isShared ? (
+
+            <div className="space-y-3">
               <button 
-                onClick={() => {
-                  if (!currentUser) {
-                    onLoginRequired?.();
-                  } else {
-                    onCheckout();
-                  }
-                }}
-                className="w-full bg-[#0B1E3F] text-white py-4 rounded-2xl font-bold hover:bg-slate-800 transition-all flex items-center justify-center gap-2"
+                onClick={onCheckout}
+                className="w-full bg-[#F44307] text-white py-4 rounded-xl font-bold transition-all hover:bg-[#D83A06] shadow-lg hover:shadow-xl flex items-center justify-center gap-2"
               >
-                Checkout Now
+                Proceed to Checkout
                 <ArrowRightIcon className="w-5 h-5" />
               </button>
-            ) : (
-              <button 
-                onClick={() => setView('home')}
-                className="w-full bg-[#F26A21] text-white py-4 rounded-2xl font-bold hover:bg-orange-600 transition-all flex items-center justify-center gap-2"
-              >
-                Shop Similar Items
-                <ShoppingBagIcon className="w-5 h-5" />
-              </button>
-            )}
-            
-            <p className="text-center text-xs text-gray-400 mt-4">
-              {isShared ? 'View only shared cart mode' : 'Secure payments handled by OrtenticSEA Abuja'}
-            </p>
+              
+              <p className="text-center text-xs text-gray-400">
+                Secure payments handled by OrtenticSEA Abuja
+              </p>
+            </div>
           </div>
         </div>
       </div>

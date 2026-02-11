@@ -3,7 +3,8 @@ import React from 'react';
 
 export type UserRole = 'buyer' | 'seller' | 'admin';
 export type SellerStatus = 'none' | 'pending' | 'approved' | 'rejected';
-export type ProductStatus = 'pending_approval' | 'live' | 'rejected' | 'sold' | 'flagged';
+export type ProductStatus = 'pending' | 'approved' | 'rejected';
+export type ShopStatus = 'DRAFT' | 'SUBMITTED' | 'UNDER_REVIEW' | 'APPROVED' | 'REJECTED';
 
 // --- Seller Success Suite Types ---
 export interface ToolExpense {
@@ -43,12 +44,33 @@ export interface Product {
   condition: 'Like New' | 'Used';
   images: string[];
   sellerId: string;
+  shopId?: string;
   category: string;
   description: string;
   status: ProductStatus;
+  rejectionReason?: string;
   isTrending?: boolean;
   isNewArrival?: boolean;
   submittedAt?: string;
+}
+
+export interface Shop {
+  id: string;
+  ownerId: string;
+  shopName: string;
+  description: string;
+  shopType: 'buyer' | 'seller';
+  status: ShopStatus;
+  rejectionReason?: string;
+  createdAt?: string;
+}
+
+export interface ShopDocument {
+  id: string;
+  shopId: string;
+  documentType: 'ID' | 'CAC' | 'ADDRESS';
+  fileUrl: string;
+  verified: boolean;
 }
 
 export interface Seller {
@@ -135,6 +157,20 @@ export interface SharedCartComment {
   userName: string;
   text: string;
   timestamp: string;
+}
+
+export interface SharedCart {
+  id: string;
+  ownerId: string;
+  items: CartItem[];
+  locked: boolean;
+  expiresAt: Date | null;
+  createdAt: Date;
+}
+
+export interface SharedCartError {
+  type: 'locked' | 'expired' | 'not-found';
+  message: string;
 }
 
 export type ViewType = 

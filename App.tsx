@@ -9,6 +9,7 @@ import CategoriesView from './views/CategoriesView.tsx';
 import ProductDetailView from './views/ProductDetailView.tsx';
 import SellerProfileView from './views/SellerProfileView.tsx';
 import CartView from './views/CartView.tsx';
+import SharedCartView from './views/SharedCartView.tsx';
 import ChatView from './views/ChatView.tsx';
 import ProfileView from './views/ProfileView.tsx';
 import LoginView from './views/LoginView.tsx';
@@ -19,15 +20,13 @@ import SellerDashboardView from './views/SellerDashboardView.tsx';
 import AdminDashboardView from './views/AdminDashboardView.tsx';
 import SellerToolsView from './views/SellerToolsView.tsx';
 import InfoView from './views/InfoView.tsx';
-import { Product, ViewType, User, CartItem, Review, Seller, SellerApplication, UserRole, SellerStatus, SharedCartComment } from './types.ts';
-import { REVIEWS, PRODUCTS, SELLERS } from './constants.tsx';
+import { Product, ViewType, CartItem, Review, Seller, UserRole, SellerStatus } from './types.ts';
+import { REVIEWS, PRODUCTS } from './constants.tsx';
 import { AudioService } from './services/audioService.ts';
-import { FirebaseAuthService } from './services/firebaseAuthService.ts';
+import { FirestoreService } from './services/firestoreService.ts';
 import { initializeFirestore } from './services/firestoreInit.ts';
-
-const REVIEWS_STORAGE_KEY = 'ortenticsea_reviews_v1';
-const APPS_STORAGE_KEY = 'ortenticsea_applications_v1';
-const SHARED_COMMENTS_KEY = 'ortenticsea_shared_comments_v1';
+import { useProducts, useApplications, useShopByOwner, useShops } from './hooks/useFirestore.ts';
+import { useAuth } from './AuthContext.tsx';
 
 const App: React.FC = () => {
   const [activeView, setActiveView] = useState<ViewType | string>('home');
@@ -35,98 +34,44 @@ const App: React.FC = () => {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [selectedSeller, setSelectedSeller] = useState<Seller | null>(null);
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
   
-  // Shared Cart State
-  const [sharedCartItems, setSharedCartItems] = useState<CartItem[]>([]);
+  // Shared Cart State - now handled by SharedCartView
   const [sharedCartId, setSharedCartId] = useState<string | null>(null);
-  const [sharedCartComments, setSharedCartComments] = useState<Record<string, SharedCartComment[]>>(() => {
-    const saved = localStorage.getItem(SHARED_COMMENTS_KEY);
-    return saved ? JSON.parse(saved) : {};
-  });
+  
+  // Use Firestore hooks for real-time data
+  const { products: firestoreProducts, loading: productsLoading } = useProducts();
+  const { applications: firestoreApplications, loading: applicationsLoading } = useApplications();
+  const { shop: currentShop } = useShopByOwner(currentUser?.id || null);
+  const { shops: allShops } = useShops(currentUser?.role === 'admin');
+  
+  // Use Firestore data if available, fallback to constants for backward compatibility
+  const products = firestoreProducts.length > 0 ? firestoreProducts : PRODUCTS;
+  const applications = firestoreApplications.length > 0 ? firestoreApplications : [];
+  
+  // Reviews state - will be migrated to Firestore
+  const [reviews, setReviews] = useState<Review[]>(REVIEWS);
 
-  useEffect(() => {
-    localStorage.setItem(SHARED_COMMENTS_KEY, JSON.stringify(sharedCartComments));
-  }, [sharedCartComments]);
+  const { user: currentUser, setUser, signOut, refreshUser } = useAuth();
+  const [showVerifyBanner, setShowVerifyBanner] = useState(false);
 
   // Handle URL parameters for shared cart
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const viewParam = params.get('view');
-    const dataParam = params.get('data');
     const idParam = params.get('id');
 
-    if (viewParam === 'shared-cart' && dataParam && idParam) {
-      try {
-        const decoded = JSON.parse(atob(dataParam));
-        // Hydrate products
-        const items: CartItem[] = decoded.map((item: { id: string, qty: number }) => {
-          const product = PRODUCTS.find(p => p.id === item.id);
-          return product ? { product, quantity: item.qty } : null;
-        }).filter(Boolean);
-
-        setSharedCartItems(items);
-        setSharedCartId(idParam);
-        setActiveView('shared-cart');
-      } catch (e) {
-        console.error("Failed to decode shared cart", e);
-      }
+    if (viewParam === 'shared-cart' && idParam) {
+      setSharedCartId(idParam);
+      setActiveView('shared-cart');
     }
   }, []);
-
-  const [applications, setApplications] = useState<SellerApplication[]>(() => {
-    const saved = localStorage.getItem(APPS_STORAGE_KEY);
-    return saved ? JSON.parse(saved) : [
-      {
-        id: 'app-1',
-        userId: 'u123',
-        shopName: 'Wuse Electronics Store',
-        description: 'Quality used home appliances',
-        email: 'wuse@market.com',
-        phone: '08012345678',
-        status: 'approved', // Default set to approved for demo purposes
-        submittedAt: new Date().toISOString(),
-        idDocument: 'mock_url',
-        sourcingProof: 'mock_url'
-      }
-    ];
-  });
-
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    localStorage.setItem(APPS_STORAGE_KEY, JSON.stringify(applications));
-  }, [applications]);
 
   // Initialize Firestore on app startup
   useEffect(() => {
     initializeFirestore().catch(console.error);
   }, []);
-
-  // Firebase Auth State Listener
-  useEffect(() => {
-    const unsubscribe = FirebaseAuthService.onAuthStateChanged((user) => {
-      setCurrentUser(user);
-      setIsLoading(false);
-    });
-
-    return () => unsubscribe();
-  }, []);
-
-  const [reviews, setReviews] = useState<Review[]>(() => {
-    try {
-      const saved = localStorage.getItem(REVIEWS_STORAGE_KEY);
-      return saved ? JSON.parse(saved) : REVIEWS;
-    } catch (e) {
-      return REVIEWS;
-    }
-  });
-
-  useEffect(() => {
-    localStorage.setItem(REVIEWS_STORAGE_KEY, JSON.stringify(reviews));
-  }, [reviews]);
 
   const cartCount = useMemo(() => cartItems.reduce((acc, item) => acc + item.quantity, 0), [cartItems]);
 
@@ -166,46 +111,32 @@ const App: React.FC = () => {
     }
   }, [currentUser]);
 
-  const handleAddSharedComment = (commentText: string) => {
-    if (!sharedCartId) return;
-    const newComment: SharedCartComment = {
-      id: Date.now().toString(),
-      userName: currentUser?.name || 'Friend from Abuja',
-      text: commentText,
-      timestamp: new Date().toISOString()
-    };
-    setSharedCartComments(prev => ({
-      ...prev,
-      [sharedCartId]: [...(prev[sharedCartId] || []), newComment]
-    }));
-  };
 
-  const handleSellerApplication = useCallback((appData: any) => {
-    if (!currentUser) return;
-    const newApp: SellerApplication = {
-      ...appData,
-      userId: currentUser.id,
-      shopName: appData.shopName || currentUser.name,
-      email: appData.email || currentUser.email
-    };
-    setApplications(prev => [...prev, newApp]);
-    setCurrentUser(prev => prev ? { ...prev, sellerStatus: 'pending' } : null);
-    setActiveView('seller-dashboard');
-  }, [currentUser]);
-
-  const handleApproveApp = useCallback((appId: string) => {
-    setApplications(prev => prev.map(a => a.id === appId ? { ...a, status: 'approved' } : a));
-    const app = applications.find(a => a.id === appId);
-    if (app && currentUser && app.userId === currentUser.id) {
-       setCurrentUser(prev => prev ? { ...prev, role: 'seller', sellerStatus: 'approved' } : null);
+  const handleApproveApp = useCallback(async (appId: string) => {
+    try {
+      await FirestoreService.updateApplication(appId, { status: 'approved' });
+      const app = applications.find(a => a.id === appId);
+      if (app && currentUser && app.userId === currentUser.id) {
+        await FirestoreService.updateUser(currentUser.id, { role: 'seller', sellerStatus: 'approved' });
+        setUser(prev => prev ? { ...prev, role: 'seller', sellerStatus: 'approved' } : null);
+        await refreshUser();
+      }
+    } catch (error) {
+      console.error('Error approving application:', error);
     }
   }, [applications, currentUser]);
 
-  const handleRejectApp = useCallback((appId: string, reason: string) => {
-    setApplications(prev => prev.map(a => a.id === appId ? { ...a, status: 'rejected', rejectionReason: reason } : a));
-    const app = applications.find(a => a.id === appId);
-    if (app && currentUser && app.userId === currentUser.id) {
-       setCurrentUser(prev => prev ? { ...prev, sellerStatus: 'rejected', rejectionReason: reason } : null);
+  const handleRejectApp = useCallback(async (appId: string, reason: string) => {
+    try {
+      await FirestoreService.updateApplication(appId, { status: 'rejected', rejectionReason: reason });
+      const app = applications.find(a => a.id === appId);
+      if (app && currentUser && app.userId === currentUser.id) {
+        await FirestoreService.updateUser(currentUser.id, { sellerStatus: 'rejected', rejectionReason: reason });
+        setUser(prev => prev ? { ...prev, sellerStatus: 'rejected', rejectionReason: reason } : null);
+        await refreshUser();
+      }
+    } catch (error) {
+      console.error('Error rejecting application:', error);
     }
   }, [applications, currentUser]);
 
@@ -218,17 +149,49 @@ const App: React.FC = () => {
 
     if (currentUser.role === 'admin') {
       setActiveView('admin-dashboard');
-    } else if (currentUser.role === 'seller' || currentUser.sellerStatus === 'approved' || currentUser.sellerStatus === 'pending' || currentUser.sellerStatus === 'rejected') {
-      setActiveView('seller-dashboard');
+    } else if (currentShop) {
+      if (currentShop.status === 'REJECTED') {
+        setActiveView('seller-onboarding');
+      } else {
+        setActiveView('seller-dashboard');
+      }
     } else {
       setActiveView('seller-onboarding');
     }
     window.scrollTo(0, 0);
   }, [currentUser]);
 
+  const requireAuth = useCallback(() => {
+    if (!currentUser) {
+      setShowLoginModal(true);
+      return false;
+    }
+    if (!currentUser.emailVerified) {
+      return false;
+    }
+    return true;
+  }, [currentUser]);
+
+  const requireAdmin = useCallback(() => {
+    if (!requireAuth()) return false;
+    if (currentUser?.role !== 'admin') {
+      setActiveView('home');
+      return false;
+    }
+    return true;
+  }, [currentUser, requireAuth]);
+
   const handleNavigate = useCallback((v: ViewType | string) => {
     if (v === 'sell') {
       handleSellClick();
+    } else if (v === 'admin-dashboard') {
+      if (!requireAdmin()) return;
+      setActiveView(v);
+      window.scrollTo(0, 0);
+    } else if (v === 'seller-dashboard' || v === 'seller-tools' || v === 'seller-onboarding') {
+      if (!requireAuth()) return;
+      setActiveView(v);
+      window.scrollTo(0, 0);
     } else {
       setActiveView(v);
       if (v !== 'categories') setSearchQuery('');
@@ -247,11 +210,11 @@ const App: React.FC = () => {
   }, []);
 
   const handleProductNavigateFromChat = useCallback((productId: string) => {
-    const product = PRODUCTS.find(p => p.id === productId);
+    const product = products.find(p => p.id === productId);
     if (product) {
       handleProductClick(product);
     }
-  }, [handleProductClick]);
+  }, [handleProductClick, products]);
 
   const renderView = () => {
     if (typeof activeView === 'string' && activeView.startsWith('page-')) {
@@ -271,10 +234,15 @@ const App: React.FC = () => {
             currentUser={currentUser}
             onBack={() => handleNavigate('home')} 
             onAddToCart={handleAddToCart}
-            onAddReview={(rating, comment) => {
+            onAddReview={async (rating, comment) => {
               if (!currentUser) return;
               const r: Review = { id: Date.now().toString(), userId: currentUser.id, userName: currentUser.name, targetId: selectedProduct.id, targetType: 'product', rating, comment, date: new Date().toISOString().split('T')[0] };
-              setReviews(prev => [...prev, r]);
+              try {
+                await FirestoreService.createReview(r);
+                setReviews(prev => [...prev, r]);
+              } catch (error) {
+                console.error('Error adding review:', error);
+              }
             }}
             onLoginPrompt={() => setShowLoginModal(true)}
             onSellerClick={handleSellerClick}
@@ -293,72 +261,103 @@ const App: React.FC = () => {
           />
         );
       case 'shared-cart':
-        return (
-          <CartView 
-            items={sharedCartItems} 
-            isShared 
-            sharedId={sharedCartId || ''}
-            comments={sharedCartId ? sharedCartComments[sharedCartId] || [] : []}
-            onAddComment={handleAddSharedComment}
-            onRemove={() => {}} 
-            onUpdateQty={() => {}} 
-            onCheckout={() => {}} 
-            setView={handleNavigate}
-            currentUser={currentUser}
-            onLoginRequired={() => setShowLoginModal(true)}
-          />
-        );
+        return <SharedCartView shareId={sharedCartId} setView={handleNavigate} />;
       case 'chat': 
         return <ChatView onProductNavigate={handleProductNavigateFromChat} onAddToCart={(p) => handleAddToCart(p)} />;
-      case 'profile': return <ProfileView user={currentUser} onLogout={() => { setCurrentUser(null); handleNavigate('home'); }} onLoginClick={() => setShowLoginModal(true)} setView={handleNavigate} />;
+      case 'profile': return <ProfileView user={currentUser} onLogout={async () => { await signOut(); setUser(null); handleNavigate('home'); }} onLoginClick={() => setShowLoginModal(true)} setView={handleNavigate} />;
       
       case 'seller-onboarding':
-        return <SellerOnboardingView 
-          onSubmit={handleSellerApplication} 
-          onCancel={() => handleNavigate('home')} 
-        />;
-      case 'seller-dashboard':
         return currentUser ? (
-          <SellerDashboardView 
-            user={currentUser} 
-            products={PRODUCTS} 
-            onCreateProduct={() => alert('Product listing module coming soon!')}
-            onRefreshStatus={() => {
-              const userApp = applications.find(a => a.userId === currentUser.id);
-              if (userApp) {
-                setCurrentUser(prev => prev ? { 
-                  ...prev, 
-                  sellerStatus: userApp.status, 
-                  role: userApp.status === 'approved' ? 'seller' : prev.role,
-                  rejectionReason: userApp.rejectionReason 
-                } : null);
+          <SellerOnboardingView 
+            user={currentUser}
+            shop={currentShop}
+            onCancel={() => handleNavigate('home')} 
+          />
+        ) : (
+          <Home setView={handleNavigate} onSearch={handleSearch} onProductClick={handleProductClick} onAddToCart={handleAddToCart} />
+        );
+      case 'seller-dashboard':
+        return currentUser && currentUser.emailVerified ? (
+          <SellerDashboardView
+            user={currentUser}
+            products={products}
+            applicationStatus={applications.find(a => a.userId === currentUser.id)?.status}
+            applicationRejectionReason={applications.find(a => a.userId === currentUser.id)?.rejectionReason}
+            shopStatus={currentShop?.status}
+            shopRejectionReason={currentShop?.rejectionReason}
+            onCreateProduct={async (data) => {
+              if (!currentUser) return;
+              const newProduct: Product = {
+                id: Date.now().toString(),
+                name: data.name,
+                price: data.price,
+                condition: data.condition,
+                images: data.images,
+                sellerId: currentUser.id,
+                shopId: currentUser.id,
+                category: data.category,
+                description: data.description,
+                status: 'pending',
+                submittedAt: new Date().toISOString(),
+              };
+              await FirestoreService.createProduct(newProduct);
+            }}
+            onRefreshStatus={async () => {
+              await refreshUser();
+            }}
+            onOpenTools={() => {
+              if (currentShop?.status === 'APPROVED') {
+                setActiveView('seller-tools');
               }
             }}
-            onOpenTools={() => setActiveView('seller-tools')}
+            onReapply={() => setActiveView('seller-onboarding')}
           />
         ) : <Home setView={handleNavigate} onSearch={handleSearch} onProductClick={handleProductClick} onAddToCart={handleAddToCart} />;
       case 'seller-tools':
-        return <SellerToolsView onBack={() => setActiveView('seller-dashboard')} />;
+        return currentUser && currentUser.emailVerified ? (
+          <SellerToolsView onBack={() => setActiveView('seller-dashboard')} />
+        ) : <Home setView={handleNavigate} onSearch={handleSearch} onProductClick={handleProductClick} onAddToCart={handleAddToCart} />;
       case 'admin-dashboard':
-        return <AdminDashboardView 
-          applications={applications} 
-          onApprove={handleApproveApp} 
-          onReject={handleRejectApp} 
-        />;
+        return currentUser?.role === 'admin' && currentUser.emailVerified ? (
+          <AdminDashboardView 
+            products={products}
+            shops={allShops}
+            onApproveProduct={async (productId) => {
+              await FirestoreService.updateProduct(productId, { status: 'approved', rejectionReason: '' });
+            }}
+            onRejectProduct={async (productId, reason) => {
+              await FirestoreService.updateProduct(productId, { status: 'rejected', rejectionReason: reason });
+            }}
+            onApproveShop={async (shopId) => {
+              await FirestoreService.updateShop(shopId, { status: 'APPROVED', rejectionReason: '' });
+            }}
+            onRejectShop={async (shopId, reason) => {
+              await FirestoreService.updateShop(shopId, { status: 'REJECTED', rejectionReason: reason });
+            }}
+            onSetShopUnderReview={async (shopId) => {
+              await FirestoreService.updateShop(shopId, { status: 'UNDER_REVIEW', rejectionReason: '' });
+            }}
+          />
+        ) : <Home setView={handleNavigate} onSearch={handleSearch} onProductClick={handleProductClick} onAddToCart={handleAddToCart} />;
       case 'seller-profile':
         return selectedSeller ? (
-          <SellerProfileView 
-            seller={selectedSeller} 
-            products={PRODUCTS} 
+          <SellerProfileView
+            seller={selectedSeller}
+            products={products}
             reviews={reviews}
             currentUser={currentUser}
             onBack={() => handleNavigate('home')} 
             onProductClick={handleProductClick}
             onAddToCart={handleAddToCart}
-            onAddReview={(rating, comment) => {
+            onAddReview={async (rating, comment) => {
               if (!currentUser) return;
               const r: Review = { id: Date.now().toString(), userId: currentUser.id, userName: currentUser.name, targetId: selectedSeller.id, targetType: 'seller', rating, comment, date: new Date().toISOString().split('T')[0] };
-              setReviews(prev => [...prev, r]);
+              try {
+                await FirestoreService.createReview(r);
+                setReviews(prev => [...prev, r]);
+              } catch (error) {
+                console.error('Error adding review:', error);
+              }
             }}
             onLoginPrompt={() => setShowLoginModal(true)}
             setView={handleNavigate}
@@ -399,10 +398,24 @@ const App: React.FC = () => {
         }}
       />
 
+      {showVerifyBanner && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[150] bg-green-600 text-white px-4 py-2 rounded-full text-xs font-bold shadow-lg">
+          Email verified successfully. Welcome aboard!
+        </div>
+      )}
+
       {currentUser && !currentUser.emailVerified && (
         <VerifyEmailView 
           user={currentUser} 
-          onLogout={() => { FirebaseAuthService.signOut(); setCurrentUser(null); handleNavigate('home'); }} 
+          onLogout={async () => { await signOut(); setUser(null); handleNavigate('home'); }} 
+          onRefresh={async () => {
+            const refreshed = await refreshUser();
+            if (refreshed?.emailVerified) {
+              setShowVerifyBanner(true);
+              window.setTimeout(() => setShowVerifyBanner(false), 3000);
+            }
+            return refreshed;
+          }}
         />
       )}
 
@@ -410,19 +423,17 @@ const App: React.FC = () => {
         <LoginView 
           onClose={() => { setShowLoginModal(false); setPendingAction(null); }} 
           onSuccess={(user) => {
-            let role: UserRole = 'buyer';
-            // Access logic: Only francisetham01@gmail.com is granted administrative privileges
-            if (user.email === 'francisetham01@gmail.com') role = 'admin';
-            
+            let role: UserRole = user.role || 'buyer';
+
             const existingApp = applications.find(a => a.email === user.email);
             // Crucial: Determine role based on application status
             let sellerStatus: SellerStatus = 'none';
             if (existingApp) {
               sellerStatus = existingApp.status;
-              if (sellerStatus === 'approved') role = 'seller';
+              if (sellerStatus === 'approved' && role !== 'admin') role = 'seller';
             }
             
-            setCurrentUser({ ...user, role, sellerStatus, rejectionReason: existingApp?.rejectionReason });
+            setUser({ ...user, role, sellerStatus, rejectionReason: existingApp?.rejectionReason });
             setShowLoginModal(false);
             if (pendingAction) { pendingAction(); setPendingAction(null); }
           }}

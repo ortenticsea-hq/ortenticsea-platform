@@ -9,6 +9,9 @@ import {
   setPersistence,
   browserLocalPersistence,
   sendEmailVerification,
+  sendPasswordResetEmail,
+  getIdTokenResult,
+  reload,
 } from 'firebase/auth';
 import { auth, db } from './firebaseConfig';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
@@ -29,6 +32,9 @@ export class FirebaseAuthService {
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const firebaseUser = userCredential.user;
+
+      // Send verification email on signup
+      await sendEmailVerification(firebaseUser);
 
       // Create user document in Firestore
       const userDoc: User = {
@@ -61,6 +67,9 @@ export class FirebaseAuthService {
       // Sync emailVerified status from Auth
       user.emailVerified = userCredential.user.emailVerified;
 
+      // Sync role from custom claims if present
+      await this.applyRoleFromClaims(userCredential.user, user);
+
       return user;
     } catch (error: any) {
       throw new Error(error.message || 'Failed to sign in');
@@ -92,6 +101,9 @@ export class FirebaseAuthService {
         await setDoc(doc(db, 'users', firebaseUser.uid), user);
       }
 
+      // Sync role from custom claims if present
+      await this.applyRoleFromClaims(firebaseUser, user);
+
       return user;
     } catch (error: any) {
       throw new Error(error.message || 'Failed to sign in with Google');
@@ -116,9 +128,12 @@ export class FirebaseAuthService {
     return new Promise((resolve) => {
       const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
         if (firebaseUser) {
+          // Force refresh to pick up emailVerified changes
+          await reload(firebaseUser);
           const user = await this.fetchUserFromFirestore(firebaseUser.uid);
           if (user) {
             user.emailVerified = firebaseUser.emailVerified;
+            await this.applyRoleFromClaims(firebaseUser, user);
           }
           resolve(user || null);
         } else {
@@ -151,6 +166,7 @@ export class FirebaseAuthService {
         const user = await this.fetchUserFromFirestore(firebaseUser.uid);
         if (user) {
           user.emailVerified = firebaseUser.emailVerified;
+          await this.applyRoleFromClaims(firebaseUser, user);
         }
         callback(user || null);
       } else {
@@ -165,6 +181,25 @@ export class FirebaseAuthService {
   static async sendVerificationEmail(): Promise<void> {
     if (auth.currentUser) {
       await sendEmailVerification(auth.currentUser);
+    }
+  }
+
+  /**
+   * Sends a password reset email.
+   */
+  static async sendPasswordResetEmail(email: string): Promise<void> {
+    await sendPasswordResetEmail(auth, email);
+  }
+
+  /**
+   * If a custom claim is present, sync role into the user profile.
+   */
+  private static async applyRoleFromClaims(firebaseUser: FirebaseUser, user: User): Promise<void> {
+    const token = await getIdTokenResult(firebaseUser, true);
+    const claimedRole = token.claims.role;
+    if (claimedRole === 'admin' && user.role !== 'admin') {
+      user.role = 'admin';
+      await setDoc(doc(db, 'users', firebaseUser.uid), user, { merge: true });
     }
   }
 }

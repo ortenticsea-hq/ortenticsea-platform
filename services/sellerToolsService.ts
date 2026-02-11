@@ -1,33 +1,74 @@
 
 import { InventoryItem, CashflowSnapshot } from '../types';
+import { FirestoreService } from './firestoreService';
 
 const STORAGE_KEY = 'ortenticsea_seller_inventory_v1';
 
 export const SellerToolsService = {
-  getItems: (): InventoryItem[] => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    return saved ? JSON.parse(saved) : [];
-  },
-
-  saveItem: (item: InventoryItem) => {
-    const items = SellerToolsService.getItems();
-    const index = items.findIndex(i => i.id === item.id);
-    if (index > -1) {
-      items[index] = item;
-    } else {
-      items.push(item);
+  /**
+   * Get items from Firestore for a specific seller
+   * Falls back to localStorage for backward compatibility
+   */
+  getItems: async (sellerId: string): Promise<InventoryItem[]> => {
+    try {
+      // Try to get from Firestore first
+      const items = await FirestoreService.getInventoryItems(sellerId);
+      return items;
+    } catch (error) {
+      console.error('Error fetching inventory from Firestore:', error);
+      // Fallback to localStorage
+      const saved = localStorage.getItem(STORAGE_KEY);
+      return saved ? JSON.parse(saved) : [];
     }
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
   },
 
-  deleteItem: (id: string) => {
-    const items = SellerToolsService.getItems().filter(i => i.id !== id);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+  /**
+   * Save item to Firestore
+   * Also saves to localStorage for backward compatibility
+   */
+  saveItem: async (sellerId: string, item: InventoryItem): Promise<void> => {
+    try {
+      await FirestoreService.saveInventoryItem(sellerId, item);
+      
+      // Also update localStorage for backward compatibility
+      const saved = localStorage.getItem(STORAGE_KEY);
+      const items = saved ? JSON.parse(saved) : [];
+      const index = items.findIndex((i: InventoryItem) => i.id === item.id);
+      if (index > -1) {
+        items[index] = item;
+      } else {
+        items.push(item);
+      }
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+    } catch (error) {
+      console.error('Error saving inventory item:', error);
+      throw error;
+    }
   },
 
-  calculateCashflow: (): CashflowSnapshot => {
-    const items = SellerToolsService.getItems();
-    
+  /**
+   * Delete item from Firestore
+   * Also removes from localStorage for backward compatibility
+   */
+  deleteItem: async (id: string): Promise<void> => {
+    try {
+      await FirestoreService.deleteInventoryItem(id);
+      
+      // Also update localStorage for backward compatibility
+      const saved = localStorage.getItem(STORAGE_KEY);
+      const items = saved ? JSON.parse(saved) : [];
+      const filtered = items.filter((i: InventoryItem) => i.id !== id);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(filtered));
+    } catch (error) {
+      console.error('Error deleting inventory item:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Calculate cashflow from inventory items
+   */
+  calculateCashflow: (items: InventoryItem[]): CashflowSnapshot => {
     return items.reduce((acc, item) => {
       const itemCosts = item.purchasePrice + item.expenses.reduce((sum, e) => sum + e.amount, 0);
       
@@ -47,8 +88,10 @@ export const SellerToolsService = {
     });
   },
 
-  getAgingInventory: (days: number = 30): InventoryItem[] => {
-    const items = SellerToolsService.getItems();
+  /**
+   * Get aging inventory items
+   */
+  getAgingInventory: (items: InventoryItem[], days: number = 30): InventoryItem[] => {
     const now = new Date();
     return items.filter(item => {
       if (item.status === 'sold') return false;

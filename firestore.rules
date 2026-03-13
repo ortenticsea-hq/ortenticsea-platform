@@ -78,6 +78,8 @@ service cloud.firestore {
                       request.resource.data.name is string &&
                       request.resource.data.price is number &&
                       request.resource.data.price > 0 &&
+                      request.resource.data.images is list &&
+                      request.resource.data.images.size() > 0 &&
                       request.resource.data.status == 'pending' &&
                       isShopApproved();
       // Sellers can update only safe fields on their own products.
@@ -98,11 +100,17 @@ service cloud.firestore {
     // ===== SELLERS COLLECTION =====
     // Publicly readable, sellers can update their own profile
     match /sellers/{sellerId} {
-      allow read: if true;
-      allow create: if isAuthenticated() && request.resource.data.id == request.auth.uid;
-      allow update: if isOwner(sellerId) || isAdmin();
-      allow delete: if isAdmin();
-    }
+     allow read: if true;
+
+     allow create: if isAuthenticated() &&
+                request.resource.data.id == request.auth.uid &&
+                request.resource.data.name is string &&
+                request.resource.data.createdAt == request.time;
+
+     allow update: if isOwner(sellerId) || isAdmin();
+
+     allow delete: if isAdmin();
+}
     
     // ===== CATEGORIES COLLECTION =====
     // Publicly readable, only admins can modify
@@ -120,6 +128,8 @@ service cloud.firestore {
                       request.resource.data.rating is number &&
                       request.resource.data.rating >= 1 &&
                       request.resource.data.rating <= 5 &&
+                      request.resource.data.comment is string &&
+                      request.resource.data.comment.size() <= 500 &&
                       request.resource.data.targetType in ['product', 'seller'];
       allow update, delete: if isOwner(resource.data.userId) || isAdmin();
     }
@@ -169,25 +179,16 @@ service cloud.firestore {
     
     // ===== INVENTORY COLLECTION =====
     // Sellers can only access their own inventory
-    match /inventory/{itemId} {
-      allow read: if isAuthenticated() && 
-                    (resource.data.sellerId == request.auth.uid || isAdmin());
-      allow create: if isSellerOrAdmin() &&
-                      request.resource.data.sellerId == request.auth.uid &&
-                      request.resource.data.name is string &&
-                      request.resource.data.purchasePrice is number &&
-                      request.resource.data.expectedPrice is number &&
-                      request.resource.data.status in ['available', 'sold'];
-      allow update: if isSellerOrAdmin() && 
-                      resource.data.sellerId == request.auth.uid;
-      allow delete: if (resource.data.sellerId == request.auth.uid) || isAdmin();
-    }
+    allow update: if isSellerOrAdmin() &&
+              resource.data.sellerId == request.auth.uid &&
+              request.resource.data.diff(resource.data).affectedKeys()
+                .hasOnly(['name','purchasePrice','expectedPrice','status']);
     
     // ===== SHARED CART COMMENTS COLLECTION =====
     // Anyone can read comments for a cart they have access to
     // Authenticated users can add comments
     match /sharedCartComments/{commentId} {
-      allow read: if true; // Cart sharing is public by design
+      allow read: if isAuthenticated();; // Cart sharing is public by design
       allow create: if isAuthenticated() &&
                       request.resource.data.cartId is string &&
                       request.resource.data.userName is string &&

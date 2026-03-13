@@ -1,18 +1,18 @@
 
 import React from 'react';
-import { Product } from '../types.ts';
+import { Product, Seller } from '../types.ts';
 import VerifiedBadge from './VerifiedBadge.tsx';
-import { SELLERS } from '../constants.tsx';
 import { ShoppingCartIcon } from '@heroicons/react/24/outline';
 
 interface ProductCardProps {
   product: Product;
+  sellers?: Seller[];
   onClick: (p: Product) => void;
   onAddToCart: (p: Product, e: React.MouseEvent) => void;
 }
 
-const ProductCard: React.FC<ProductCardProps> = ({ product, onClick, onAddToCart }) => {
-  const seller = SELLERS.find(s => s.id === product.sellerId);
+const ProductCard: React.FC<ProductCardProps> = ({ product, sellers = [], onClick, onAddToCart }) => {
+  const seller = sellers.find(s => s.id === product.sellerId);
 
   return (
     <div 

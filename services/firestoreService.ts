@@ -15,7 +15,7 @@ import {
   Unsubscribe,
 } from 'firebase/firestore';
 import { db } from './firebaseConfig';
-import { Product, Seller, Category, Review, SellerApplication, User, InventoryItem, SharedCartComment, Shop, ShopDocument } from '../types';
+import { Product, ProductStatus, Order, Seller, Category, Review, SellerApplication, User, InventoryItem, SharedCartComment, Shop, ShopDocument } from '../types';
 
 /**
  * Firestore Service for all database operations
@@ -104,6 +104,20 @@ export class FirestoreService {
       console.error('Error creating seller:', error);
       throw error;
     }
+  }
+
+  static subscribeToSellers(callback: (sellers: Seller[]) => void): Unsubscribe {
+    return onSnapshot(
+      collection(db, 'sellers'),
+      (querySnapshot) => {
+        const sellers = querySnapshot.docs.map((doc) => doc.data() as Seller);
+        callback(sellers);
+      },
+      (error) => {
+        console.error('Error subscribing to sellers:', error);
+        callback([]);
+      }
+    );
   }
 
   // ===== REVIEWS =====
@@ -312,15 +326,92 @@ export class FirestoreService {
   }
 
   // ===== REAL-TIME SUBSCRIPTIONS =====
-  static subscribeToProducts(callback: (products: Product[]) => void): Unsubscribe {
+  static subscribeToProducts(
+    callback: (products: Product[]) => void,
+    status?: ProductStatus
+  ): Unsubscribe {
+    const base = collection(db, 'products');
+    const productQuery: Query<DocumentData> = status
+      ? query(base, where('status', '==', status))
+      : base;
+
     return onSnapshot(
-      collection(db, 'products'),
+      productQuery,
       (querySnapshot) => {
         const products = querySnapshot.docs.map((doc) => doc.data() as Product);
         callback(products);
       },
       (error) => {
         console.error('Error subscribing to products:', error);
+        callback([]);
+      }
+    );
+  }
+
+  // ===== ORDERS =====
+  static async createOrder(order: Order): Promise<void> {
+    try {
+      await setDoc(doc(db, 'orders', order.id), order);
+    } catch (error) {
+      console.error('Error creating order:', error);
+      throw error;
+    }
+  }
+
+  static async updateOrder(orderId: string, updates: Partial<Order>): Promise<void> {
+    try {
+      await updateDoc(doc(db, 'orders', orderId), updates);
+    } catch (error) {
+      console.error('Error updating order:', error);
+      throw error;
+    }
+  }
+
+  static subscribeToOrdersByBuyer(
+    buyerId: string,
+    callback: (orders: Order[]) => void
+  ): Unsubscribe {
+    const q = query(collection(db, 'orders'), where('buyerId', '==', buyerId));
+    return onSnapshot(
+      q,
+      (querySnapshot) => {
+        const orders = querySnapshot.docs.map((doc) => doc.data() as Order);
+        callback(orders);
+      },
+      (error) => {
+        console.error('Error subscribing to buyer orders:', error);
+        callback([]);
+      }
+    );
+  }
+
+  static subscribeToOrders(callback: (orders: Order[]) => void): Unsubscribe {
+    return onSnapshot(
+      collection(db, 'orders'),
+      (querySnapshot) => {
+        const orders = querySnapshot.docs.map((doc) => doc.data() as Order);
+        callback(orders);
+      },
+      (error) => {
+        console.error('Error subscribing to orders:', error);
+        callback([]);
+      }
+    );
+  }
+
+  static subscribeToProductsBySeller(
+    sellerId: string,
+    callback: (products: Product[]) => void
+  ): Unsubscribe {
+    const q = query(collection(db, 'products'), where('sellerId', '==', sellerId));
+    return onSnapshot(
+      q,
+      (querySnapshot) => {
+        const products = querySnapshot.docs.map((doc) => doc.data() as Product);
+        callback(products);
+      },
+      (error) => {
+        console.error('Error subscribing to seller products:', error);
         callback([]);
       }
     );
@@ -350,6 +441,24 @@ export class FirestoreService {
       },
       (error) => {
         console.error('Error subscribing to applications:', error);
+        callback([]);
+      }
+    );
+  }
+
+  static subscribeToApplicationsByUserId(
+    userId: string,
+    callback: (applications: SellerApplication[]) => void
+  ): Unsubscribe {
+    const q = query(collection(db, 'applications'), where('userId', '==', userId));
+    return onSnapshot(
+      q,
+      (querySnapshot) => {
+        const applications = querySnapshot.docs.map((doc) => doc.data() as SellerApplication);
+        callback(applications);
+      },
+      (error) => {
+        console.error('Error subscribing to user applications:', error);
         callback([]);
       }
     );

@@ -177,6 +177,7 @@ const SellerProfileView: React.FC<SellerProfileViewProps> = ({
                   <ProductCard 
                     key={p.id} 
                     product={p} 
+                    sellers={[seller]}
                     onClick={onProductClick} 
                     onAddToCart={onAddToCart} 
                   />

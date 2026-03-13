@@ -21,6 +21,8 @@ const LoginView: React.FC<LoginViewProps> = ({ onClose, onSuccess }) => {
   const [resetSent, setResetSent] = useState(false);
   const [resetEmail, setResetEmail] = useState('');
 
+  const normalizedEmail = email.trim().toLowerCase();
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -29,16 +31,16 @@ const LoginView: React.FC<LoginViewProps> = ({ onClose, onSuccess }) => {
     try {
       let user;
       if (isReset) {
-        await FirebaseAuthService.sendPasswordResetEmail(email);
-        setResetEmail(email);
+        await FirebaseAuthService.sendPasswordResetEmail(normalizedEmail);
+        setResetEmail(normalizedEmail);
         setResetSent(true);
         setIsLoading(false);
         return;
       }
       if (isLogin) {
-        user = await FirebaseAuthService.signInWithEmail(email, password);
+        user = await FirebaseAuthService.signInWithEmail(normalizedEmail, password);
       } else {
-        user = await FirebaseAuthService.registerWithEmail(email, password, name);
+        user = await FirebaseAuthService.registerWithEmail(normalizedEmail, password, name.trim());
       }
       onSuccess(user);
     } catch (err: any) {

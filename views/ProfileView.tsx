@@ -39,7 +39,7 @@ const ProfileView: React.FC<ProfileViewProps> = ({ user, onLogout, onLoginClick,
   }
 
   const menuItems = [
-    { label: 'My Orders', icon: ShoppingBagIcon, view: 'cart' },
+    { label: 'My Orders', icon: ShoppingBagIcon, view: 'orders' },
     { label: 'Saved Items', icon: BellIcon, view: 'home' },
     { label: 'Shipping Address', icon: MapPinIcon, view: 'profile' },
     { label: 'Payment Methods', icon: CreditCardIcon, view: 'profile' },

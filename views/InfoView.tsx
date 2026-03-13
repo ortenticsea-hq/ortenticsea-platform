@@ -29,7 +29,7 @@ const InfoView: React.FC<InfoViewProps> = ({ pageId, setView }) => {
           <div className="bg-green-50 border border-green-100 p-6 rounded-xl flex items-start gap-4">
             <ShieldCheckIcon className="w-12 h-12 text-green-600 flex-shrink-0" />
             <div>
-              <h3 className="font-bold text-green-900 text-lg">We got you covered</h3>
+              <h3 className="font-bold text-green-900 text-lg"> We got you covered</h3>
               <p className="text-green-800 text-sm mt-1">
                 Get the item you ordered or your money back. It's that simple. Our Abuja-based verification team ensures every Grade-A item matches its description.
               </p>

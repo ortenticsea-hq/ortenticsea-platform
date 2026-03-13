@@ -14,6 +14,9 @@ lerna-debug.log*
 *.pem
 *.key
 *firebase-adminsdk*.json
+.vercel
+.env.local
+.env.production
 
 node_modules
 dist

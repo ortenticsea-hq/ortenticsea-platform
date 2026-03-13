@@ -1,17 +1,19 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { CATEGORIES, PRODUCTS } from '../constants.tsx';
+import { CATEGORIES } from '../constants.tsx';
 import ProductCard from '../components/ProductCard.tsx';
-import { Product } from '../types.ts';
+import { Product, Seller } from '../types.ts';
 import { LockClosedIcon, SparklesIcon, GlobeAltIcon, RocketLaunchIcon } from '@heroicons/react/24/outline';
 
 interface CategoriesViewProps {
+  products: Product[];
+  sellers: Seller[];
   initialSearchQuery?: string;
   onProductClick: (p: Product) => void;
   onAddToCart: (p: Product, e: React.MouseEvent) => void;
 }
 
-const CategoriesView: React.FC<CategoriesViewProps> = ({ initialSearchQuery = '', onProductClick, onAddToCart }) => {
+const CategoriesView: React.FC<CategoriesViewProps> = ({ products, sellers, initialSearchQuery = '', onProductClick, onAddToCart }) => {
   const [selectedCat, setSelectedCat] = useState<string | null>(null);
   const [searchFilter, setSearchFilter] = useState(initialSearchQuery);
 
@@ -25,7 +27,9 @@ const CategoriesView: React.FC<CategoriesViewProps> = ({ initialSearchQuery = ''
   );
 
   const filteredProducts = useMemo(() => {
-    let list = PRODUCTS.filter(p => p.status === 'approved');
+    let list = products.filter(
+      (p) => p.status === 'approved' && (p.availableQuantity === undefined || p.availableQuantity > 0)
+    );
     
     // Filter by keyword if searchFilter exists
     if (searchFilter.trim()) {
@@ -43,7 +47,7 @@ const CategoriesView: React.FC<CategoriesViewProps> = ({ initialSearchQuery = ''
     }
     
     return list;
-  }, [selectedCat, searchFilter]);
+  }, [products, selectedCat, searchFilter]);
 
   const renderOSWTeaser = () => (
     <div className="bg-[#121212] rounded-[3rem] p-8 md:p-20 text-white relative overflow-hidden animate-in fade-in zoom-in duration-700 border border-violet-500/20 shadow-2xl shadow-violet-500/10">
@@ -162,6 +166,7 @@ const CategoriesView: React.FC<CategoriesViewProps> = ({ initialSearchQuery = ''
                   <ProductCard 
                     key={p.id} 
                     product={p} 
+                    sellers={sellers}
                     onClick={onProductClick}
                     onAddToCart={onAddToCart}
                   />

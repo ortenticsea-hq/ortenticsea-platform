@@ -4,6 +4,7 @@ import React from 'react';
 export type UserRole = 'buyer' | 'seller' | 'admin';
 export type SellerStatus = 'none' | 'pending' | 'approved' | 'rejected';
 export type ProductStatus = 'pending' | 'approved' | 'rejected';
+export type OrderStatus = 'pending' | 'paid' | 'shipped' | 'delivered';
 export type ShopStatus = 'DRAFT' | 'SUBMITTED' | 'UNDER_REVIEW' | 'APPROVED' | 'REJECTED';
 
 // --- Seller Success Suite Types ---
@@ -52,6 +53,7 @@ export interface Product {
   isTrending?: boolean;
   isNewArrival?: boolean;
   submittedAt?: string;
+  availableQuantity?: number;
 }
 
 export interface Shop {
@@ -152,6 +154,37 @@ export interface CartItem {
   quantity: number;
 }
 
+export interface OrderItem {
+  productId: string;
+  name: string;
+  price: number;
+  quantity: number;
+  image?: string;
+  sellerId?: string;
+}
+
+export interface OrderPayment {
+  provider: 'paystack';
+  status: 'pending' | 'paid' | 'failed';
+  reference?: string;
+  checkoutUrl?: string;
+  metadata?: Record<string, unknown>;
+  paidAt?: string;
+}
+
+export interface Order {
+  id: string;
+  buyerId: string;
+  buyerEmail?: string;
+  items: OrderItem[];
+  totalAmount: number;
+  currency: 'NGN';
+  status: OrderStatus;
+  payment: OrderPayment;
+  createdAt: string;
+  updatedAt?: string;
+}
+
 export interface SharedCartComment {
   id: string;
   userName: string;
@@ -186,4 +219,7 @@ export type ViewType =
   | 'seller-onboarding'
   | 'seller-dashboard'
   | 'seller-tools'
-  | 'shared-cart';
+  | 'shared-cart'
+  | 'payment-success'
+  | 'payment-cancel'
+  | 'orders';

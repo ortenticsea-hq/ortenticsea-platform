@@ -1,5 +1,5 @@
 import { collection, doc, setDoc, serverTimestamp, updateDoc, deleteDoc } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL, deleteObject, refFromURL } from 'firebase/storage';
+import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { db, storage } from './firebaseConfig';
 import { Shop, ShopDocument } from '../types';
 
@@ -57,7 +57,7 @@ async function uploadDocument(ownerId: string, shopId: string, type: 'ID' | 'CAC
 
 export async function deleteShopDocument(docItem: ShopDocument): Promise<void> {
   try {
-    const fileRef = refFromURL(docItem.fileUrl);
+    const fileRef = ref(storage, docItem.fileUrl);
     await deleteObject(fileRef);
   } catch {
     // Ignore storage deletion errors to allow cleanup of firestore doc

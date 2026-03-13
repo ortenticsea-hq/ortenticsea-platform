@@ -1,7 +1,6 @@
 
 import React, { useState } from 'react';
 import { Product, Seller, Review, User, ViewType } from '../types';
-import { SELLERS } from '../constants';
 import VerifiedBadge from '../components/VerifiedBadge';
 import StarRating from '../components/StarRating';
 import ReviewSection from '../components/ReviewSection';
@@ -9,6 +8,7 @@ import { ChevronLeftIcon, StarIcon, ShieldCheckIcon, TruckIcon } from '@heroicon
 
 interface ProductDetailViewProps {
   product: Product;
+  sellers: Seller[];
   reviews: Review[];
   currentUser: User | null;
   onBack: () => void;
@@ -20,6 +20,7 @@ interface ProductDetailViewProps {
 
 const ProductDetailView: React.FC<ProductDetailViewProps> = ({ 
   product, 
+  sellers,
   reviews, 
   currentUser,
   onBack, 
@@ -29,7 +30,7 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
   onSellerClick
 }) => {
   const [activeImage, setActiveImage] = useState(0);
-  const seller = SELLERS.find(s => s.id === product.sellerId);
+  const seller = sellers.find(s => s.id === product.sellerId);
 
   const productReviews = reviews.filter(r => r.targetId === product.id && r.targetType === 'product');
   const avgRating = productReviews.length > 0 

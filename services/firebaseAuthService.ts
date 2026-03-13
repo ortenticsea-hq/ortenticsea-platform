@@ -12,6 +12,7 @@ import {
   sendPasswordResetEmail,
   getIdTokenResult,
   reload,
+  fetchSignInMethodsForEmail,
 } from 'firebase/auth';
 import { auth, db } from './firebaseConfig';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
@@ -21,6 +22,148 @@ import { User } from '../types';
 setPersistence(auth, browserLocalPersistence);
 
 export class FirebaseAuthService {
+  private static normalizeEmail(email: string): string {
+    return email.trim().toLowerCase();
+  }
+
+  private static isInvalidCredentialError(code?: string): boolean {
+    return (
+      code === 'auth/invalid-credential' ||
+      code === 'auth/invalid-login-credentials' ||
+      code === 'auth/wrong-password' ||
+      code === 'auth/user-not-found'
+    );
+  }
+
+  private static async tryEmailSignIn(
+    email: string,
+    password: string
+  ): Promise<{ user: FirebaseUser; usedTrimmedPassword: boolean }> {
+    const trimmedPassword = password.trim();
+
+    try {
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      return { user: userCredential.user, usedTrimmedPassword: false };
+    } catch (error: any) {
+      if (
+        !this.isInvalidCredentialError(error?.code) ||
+        trimmedPassword === password ||
+        trimmedPassword.length === 0
+      ) {
+        throw error;
+      }
+
+      const retryCredential = await signInWithEmailAndPassword(auth, email, trimmedPassword);
+      return { user: retryCredential.user, usedTrimmedPassword: true };
+    }
+  }
+
+  private static async mapSignInError(error: any, email: string): Promise<Error> {
+    const code = error?.code as string | undefined;
+
+    if (code === 'auth/unauthorized-domain') {
+      return this.mapUnauthorizedDomainError();
+    }
+
+    if (code === 'auth/user-disabled') {
+      return new Error('This account has been disabled. Contact support.');
+    }
+
+    if (this.isInvalidCredentialError(code)) {
+      try {
+        const methods = await fetchSignInMethodsForEmail(auth, email);
+        if (methods.includes(GoogleAuthProvider.PROVIDER_ID) && !methods.includes('password')) {
+          return new Error('This account uses Google Sign-In. Tap "Sign in with Google" to continue.');
+        }
+      } catch {
+        // Ignore lookup failures and fall back to generic guidance.
+      }
+
+      return new Error('Invalid email or password. Check your details or use "Forgot password?".');
+    }
+
+    return new Error(error?.message || 'Failed to sign in');
+  }
+
+  private static async mapRegisterError(error: any, email: string): Promise<Error> {
+    const code = error?.code as string | undefined;
+
+    if (code === 'auth/unauthorized-domain') {
+      return this.mapUnauthorizedDomainError();
+    }
+
+    if (code === 'auth/email-already-in-use') {
+      try {
+        const methods = await fetchSignInMethodsForEmail(auth, email);
+        if (methods.includes(GoogleAuthProvider.PROVIDER_ID) && !methods.includes('password')) {
+          return new Error('This email is already registered with Google. Use "Sign in with Google" instead.');
+        }
+      } catch {
+        // Ignore lookup failures and still provide a useful message.
+      }
+      return new Error('An account with this email already exists. Sign in instead or use "Forgot password?".');
+    }
+
+    if (code === 'auth/invalid-email') {
+      return new Error('Please enter a valid email address.');
+    }
+
+    if (code === 'auth/weak-password') {
+      return new Error('Password is too weak. Use at least 6 characters.');
+    }
+
+    if (code === 'auth/operation-not-allowed') {
+      return new Error('Email/password sign-up is not enabled. Contact support.');
+    }
+
+    return new Error(error?.message || 'Failed to register user');
+  }
+
+  private static mapUnauthorizedDomainError(): Error {
+    const currentHost = typeof window !== 'undefined' ? window.location.hostname : 'this domain';
+    return new Error(
+      `This domain (${currentHost}) is not authorized for Firebase Auth. Add it in Firebase Console > Authentication > Settings > Authorized domains.`
+    );
+  }
+
+  private static async mapGoogleSignInError(error: any): Promise<Error> {
+    const code = error?.code as string | undefined;
+
+    if (code === 'auth/unauthorized-domain') {
+      return this.mapUnauthorizedDomainError();
+    }
+
+    if (code === 'auth/popup-blocked') {
+      return new Error('Sign-in popup was blocked. Allow popups for this site and try again.');
+    }
+
+    if (code === 'auth/popup-closed-by-user') {
+      return new Error('Sign-in popup was closed before completion. Try again.');
+    }
+
+    if (code === 'auth/account-exists-with-different-credential') {
+      const email = error?.customData?.email as string | undefined;
+      if (email) {
+        try {
+          const methods = await fetchSignInMethodsForEmail(auth, this.normalizeEmail(email));
+          if (methods.includes('password')) {
+            return new Error('An account with this email already exists. Sign in with email and password instead.');
+          }
+          if (methods.length > 0) {
+            return new Error(
+              `An account with this email already exists using ${methods[0]}. Sign in with that method first.`
+            );
+          }
+        } catch {
+          // Ignore lookup failure and use fallback message.
+        }
+      }
+      return new Error('An account already exists with a different sign-in method. Use the original provider first.');
+    }
+
+    return new Error(error?.message || 'Failed to sign in with Google');
+  }
+
   /**
    * Register a new user with email and password
    */
@@ -29,8 +172,9 @@ export class FirebaseAuthService {
     password: string,
     displayName: string
   ): Promise<User> {
+    const normalizedEmail = this.normalizeEmail(email);
     try {
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const userCredential = await createUserWithEmailAndPassword(auth, normalizedEmail, password);
       const firebaseUser = userCredential.user;
 
       // Send verification email on signup
@@ -40,7 +184,7 @@ export class FirebaseAuthService {
       const userDoc: User = {
         id: firebaseUser.uid,
         name: displayName,
-        email: email,
+        email: normalizedEmail,
         role: 'buyer',
         emailVerified: firebaseUser.emailVerified,
         sellerStatus: 'none',
@@ -49,7 +193,7 @@ export class FirebaseAuthService {
       await setDoc(doc(db, 'users', firebaseUser.uid), userDoc);
       return userDoc;
     } catch (error: any) {
-      throw new Error(error.message || 'Failed to register user');
+      throw await this.mapRegisterError(error, normalizedEmail);
     }
   }
 
@@ -57,22 +201,27 @@ export class FirebaseAuthService {
    * Sign in with email and password
    */
   static async signInWithEmail(email: string, password: string): Promise<User> {
+    const normalizedEmail = this.normalizeEmail(email);
     try {
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      const user = await this.fetchUserFromFirestore(userCredential.user.uid);
+      const { user: firebaseUser, usedTrimmedPassword } = await this.tryEmailSignIn(normalizedEmail, password);
+      const user = await this.fetchUserFromFirestore(firebaseUser.uid);
       if (!user) {
         throw new Error('User profile not found');
       }
 
       // Sync emailVerified status from Auth
-      user.emailVerified = userCredential.user.emailVerified;
+      user.emailVerified = firebaseUser.emailVerified;
 
       // Sync role from custom claims if present
-      await this.applyRoleFromClaims(userCredential.user, user);
+      await this.applyRoleFromClaims(firebaseUser, user);
+
+      if (usedTrimmedPassword) {
+        console.warn('Signed in after trimming extra spaces from password input.');
+      }
 
       return user;
     } catch (error: any) {
-      throw new Error(error.message || 'Failed to sign in');
+      throw await this.mapSignInError(error, normalizedEmail);
     }
   }
 
@@ -106,7 +255,7 @@ export class FirebaseAuthService {
 
       return user;
     } catch (error: any) {
-      throw new Error(error.message || 'Failed to sign in with Google');
+      throw await this.mapGoogleSignInError(error);
     }
   }
 
@@ -188,7 +337,7 @@ export class FirebaseAuthService {
    * Sends a password reset email.
    */
   static async sendPasswordResetEmail(email: string): Promise<void> {
-    await sendPasswordResetEmail(auth, email);
+    await sendPasswordResetEmail(auth, this.normalizeEmail(email));
   }
 
   /**
@@ -199,7 +348,12 @@ export class FirebaseAuthService {
     const claimedRole = token.claims.role;
     if (claimedRole === 'admin' && user.role !== 'admin') {
       user.role = 'admin';
-      await setDoc(doc(db, 'users', firebaseUser.uid), user, { merge: true });
+      try {
+        await setDoc(doc(db, 'users', firebaseUser.uid), user, { merge: true });
+      } catch (error) {
+        // Role remains updated in-memory even if Firestore write is blocked.
+        console.warn('Failed to persist admin role to Firestore:', error);
+      }
     }
   }
 }

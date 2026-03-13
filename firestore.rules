@@ -71,7 +71,9 @@ service cloud.firestore {
     // ===== PRODUCTS COLLECTION =====
     // Products are publicly readable, sellers can create/update their own
     match /products/{productId} {
-      allow read: if true;
+      allow read: if resource.data.status == 'approved' ||
+                    isAdmin() ||
+                    (isAuthenticated() && resource.data.sellerId == request.auth.uid);
       allow create: if isSellerOrAdmin() &&
                       request.resource.data.sellerId == request.auth.uid &&
                       request.resource.data.shopId == request.auth.uid &&
@@ -100,17 +102,15 @@ service cloud.firestore {
     // ===== SELLERS COLLECTION =====
     // Publicly readable, sellers can update their own profile
     match /sellers/{sellerId} {
-     allow read: if true;
-
-     allow create: if isAuthenticated() &&
-                request.resource.data.id == request.auth.uid &&
-                request.resource.data.name is string &&
-                request.resource.data.createdAt == request.time;
-
-     allow update: if isOwner(sellerId) || isAdmin();
-
-     allow delete: if isAdmin();
-}
+      allow read: if true;
+      allow create: if (isAuthenticated() &&
+                        request.resource.data.id == request.auth.uid &&
+                        request.resource.data.name is string &&
+                        request.resource.data.createdAt == request.time) ||
+                      isAdmin();
+      allow update: if isOwner(sellerId) || isAdmin();
+      allow delete: if isAdmin();
+    }
     
     // ===== CATEGORIES COLLECTION =====
     // Publicly readable, only admins can modify
@@ -179,22 +179,46 @@ service cloud.firestore {
     
     // ===== INVENTORY COLLECTION =====
     // Sellers can only access their own inventory
-    allow update: if isSellerOrAdmin() &&
-              resource.data.sellerId == request.auth.uid &&
-              request.resource.data.diff(resource.data).affectedKeys()
-                .hasOnly(['name','purchasePrice','expectedPrice','status']);
+    match /inventory/{itemId} {
+      allow read: if isAuthenticated() && 
+                    (resource.data.sellerId == request.auth.uid || isAdmin());
+      allow create: if isSellerOrAdmin() &&
+                      request.resource.data.sellerId == request.auth.uid &&
+                      request.resource.data.name is string &&
+                      request.resource.data.purchasePrice is number &&
+                      request.resource.data.expectedPrice is number &&
+                      request.resource.data.status in ['available', 'sold'];
+      allow update: if isSellerOrAdmin() &&
+                      resource.data.sellerId == request.auth.uid &&
+                      request.resource.data.diff(resource.data).affectedKeys()
+                        .hasOnly(['name', 'purchasePrice', 'expectedPrice', 'status']);
+      allow delete: if (resource.data.sellerId == request.auth.uid) || isAdmin();
+    }
     
     // ===== SHARED CART COMMENTS COLLECTION =====
     // Anyone can read comments for a cart they have access to
     // Authenticated users can add comments
     match /sharedCartComments/{commentId} {
-      allow read: if isAuthenticated();; // Cart sharing is public by design
+      allow read: if true; // Cart sharing is public by design
       allow create: if isAuthenticated() &&
                       request.resource.data.cartId is string &&
                       request.resource.data.userName is string &&
                       request.resource.data.text is string &&
                       request.resource.data.timestamp is string;
       allow update: if false; // Comments are immutable
+      allow delete: if isAdmin();
+    }
+
+    // ===== ORDERS COLLECTION =====
+    match /orders/{orderId} {
+      allow read: if isAuthenticated() && (resource.data.buyerId == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() &&
+                      request.resource.data.buyerId == request.auth.uid &&
+                      request.resource.data.status == 'pending' &&
+                      request.resource.data.totalAmount is number &&
+                      request.resource.data.totalAmount > 0 &&
+                      request.resource.data.items is list;
+      allow update: if isAdmin();
       allow delete: if isAdmin();
     }
     

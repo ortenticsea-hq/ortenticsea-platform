@@ -11,24 +11,30 @@ import {
   ChevronRightIcon,
   LockClosedIcon
 } from '@heroicons/react/24/outline';
-import { CATEGORIES, PRODUCTS } from '../constants.tsx';
+import { CATEGORIES } from '../constants.tsx';
 import ProductCard from '../components/ProductCard.tsx';
-import { Product, ViewType } from '../types.ts';
+import { Product, Seller, ViewType } from '../types.ts';
 
 interface HomeProps {
+  products: Product[];
+  sellers: Seller[];
   setView: (v: ViewType) => void;
   onSearch: (q: string) => void;
   onProductClick: (p: Product) => void;
   onAddToCart: (p: Product, e: React.MouseEvent) => void;
 }
 
-const Home: React.FC<HomeProps> = ({ setView, onSearch, onProductClick, onAddToCart }) => {
-  const trending = PRODUCTS.filter(p => p.status === 'approved' && p.isTrending);
-  const newArrivals = PRODUCTS.filter(p => p.status === 'approved' && p.isNewArrival);
+const Home: React.FC<HomeProps> = ({ products, sellers, setView, onSearch, onProductClick, onAddToCart }) => {
+  const approvedProducts = products.filter(
+    (p) => p.status === 'approved' && (p.availableQuantity === undefined || p.availableQuantity > 0)
+  );
+  const trending = approvedProducts.filter(p => p.isTrending);
+  const newArrivals = approvedProducts.filter(p => p.isNewArrival);
   const [carouselIndex, setCarouselIndex] = useState(0);
 
   // Auto-slide logic for Hero Carousel
   useEffect(() => {
+    if (trending.length === 0) return;
     const timer = setInterval(() => {
       setCarouselIndex((prev) => (prev + 1) % trending.length);
     }, 5000);
@@ -36,10 +42,12 @@ const Home: React.FC<HomeProps> = ({ setView, onSearch, onProductClick, onAddToC
   }, [trending.length]);
 
   const nextSlide = useCallback(() => {
+    if (trending.length === 0) return;
     setCarouselIndex((prev) => (prev + 1) % trending.length);
   }, [trending.length]);
 
   const prevSlide = useCallback(() => {
+    if (trending.length === 0) return;
     setCarouselIndex((prev) => (prev - 1 + trending.length) % trending.length);
   }, [trending.length]);
 
@@ -217,6 +225,7 @@ const Home: React.FC<HomeProps> = ({ setView, onSearch, onProductClick, onAddToC
             <ProductCard 
               key={product.id} 
               product={product} 
+              sellers={sellers}
               onClick={onProductClick}
               onAddToCart={onAddToCart}
             />
@@ -243,6 +252,7 @@ const Home: React.FC<HomeProps> = ({ setView, onSearch, onProductClick, onAddToC
             <ProductCard 
               key={product.id} 
               product={product} 
+              sellers={sellers}
               onClick={onProductClick}
               onAddToCart={onAddToCart}
             />

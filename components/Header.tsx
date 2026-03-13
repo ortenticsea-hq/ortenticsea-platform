@@ -66,17 +66,6 @@ const Header: React.FC<HeaderProps> = ({ activeView, setView, onSearch, cartCoun
           {/* Actions */} 
           <div className="flex items-center gap-2 md:gap-5 flex-shrink-0">
             <button 
-              onClick={() => setIsMobileSearchOpen(!isMobileSearchOpen)}
-              className={`lg:hidden p-2 rounded-xl transition-all border ${
-                isMobileSearchOpen 
-                  ? 'bg-[#F44307] text-white border-[#F44307]' 
-                  : 'text-slate-600 border-slate-200 hover:bg-white bg-white/50'
-              }`}
-            >
-              <MagnifyingGlassIcon className="w-5 h-5" />
-            </button>
-            
-            <button 
               onClick={() => setView('chat')}
               className={`px-3 md:px-4 py-2 md:py-2.5 rounded-xl transition-all flex items-center gap-2 border font-semibold text-sm ${
                 activeView === 'chat' ? 'bg-[#F44307] text-white border-[#F44307] shadow-lg shadow-[#F44307]/20' : 'text-slate-600 border-slate-200 hover:bg-white hover:border-slate-300 bg-white/50'
@@ -134,32 +123,50 @@ const Header: React.FC<HeaderProps> = ({ activeView, setView, onSearch, cartCoun
 
         {/* Mobile Search Row */}
         <div className="lg:hidden pb-4 pt-2">
-          <form onSubmit={handleSearchSubmit} className="relative w-full group">
-            <input 
-              type="text" 
-              value={searchValue}
-              onChange={(e) => setSearchValue(e.target.value)}
-              placeholder="Search verified items..."
-              className="w-full bg-white border-2 border-slate-200 rounded-xl px-11 py-3 text-sm font-medium text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-4 focus:ring-[#F44307]/20 focus:bg-white focus:border-[#F44307] transition-all"
-            />
-            <MagnifyingGlassIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-[#F44307] transition-colors" />
-          </form>
-        </div>
-        {isMobileSearchOpen && (
-          <div className="lg:hidden pb-4 pt-2 animate-in slide-in-from-top-2">
-            <form onSubmit={handleSearchSubmit} className="relative w-full group">
-              <input 
-                type="text" 
-                value={searchValue}
-                onChange={(e) => setSearchValue(e.target.value)}
-                placeholder="Search verified items..."
-                autoFocus
-                className="w-full bg-white border-2 border-slate-200 rounded-xl px-11 py-3 text-sm font-medium text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-4 focus:ring-[#F44307]/20 focus:bg-white focus:border-[#F44307] transition-all"
-              />
-              <MagnifyingGlassIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-[#F44307] transition-colors" />
-            </form>
+          {!isMobileSearchOpen ? (
+            <button
+              type="button"
+              onClick={() => setIsMobileSearchOpen(true)}
+              className="w-full h-12 rounded-2xl border-2 border-slate-200 bg-white px-4 flex items-center justify-between text-slate-700 hover:border-[#F44307]/60 hover:bg-[#FFF5F1] transition-all"
+              aria-label="Open search"
+            >
+              <span className="flex items-center gap-2.5 text-sm font-semibold">
+                <MagnifyingGlassIcon className="w-5 h-5 text-[#F44307]" />
+                Search verified items
+              </span>
+              <span className="text-[11px] font-bold text-[#F44307] uppercase tracking-wide">Tap</span>
+            </button>
+          ) : (
+            <div className="animate-in slide-in-from-top-2">
+              <form onSubmit={handleSearchSubmit} className="flex items-center gap-2">
+                <div className="relative flex-1 group">
+                  <input 
+                    type="text" 
+                    value={searchValue}
+                    onChange={(e) => setSearchValue(e.target.value)}
+                    placeholder="Search verified items..."
+                    autoFocus
+                    className="w-full bg-white border-2 border-slate-200 rounded-xl pl-11 pr-3 py-3.5 text-sm font-medium text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-4 focus:ring-[#F44307]/20 focus:bg-white focus:border-[#F44307] transition-all"
+                  />
+                  <MagnifyingGlassIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-[#F44307] transition-colors" />
+                </div>
+                <button
+                  type="submit"
+                  className="h-[50px] px-4 rounded-xl bg-[#F44307] hover:bg-[#D83A06] text-white text-sm font-bold shadow-md active:scale-[0.98] transition-all"
+                >
+                  Search
+                </button>
+              </form>
+              <button
+                type="button"
+                onClick={() => setIsMobileSearchOpen(false)}
+                className="mt-2 text-xs font-semibold text-slate-500 hover:text-slate-700"
+              >
+                Cancel
+              </button>
+            </div>
+          )}
           </div>
-        )}
       </div>
     </header>
   );

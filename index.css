@@ -1,3 +1,7 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 /* Base stylesheet referenced by index.html.
    Keep this file present so /index.css resolves as text/css in dev tunnels. */
 

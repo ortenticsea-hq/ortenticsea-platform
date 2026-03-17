@@ -3,7 +3,7 @@ import { GoogleGenAI } from "@google/genai";
 import { PRODUCTS, SELLERS } from "../constants.tsx";
 
 // Initialize the Google GenAI SDK with the API key from environment variables
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+const ai = new GoogleGenAI({ apiKey: process.env.VITE_API_KEY });
 
 const getSystemInstruction = (language: 'pidgin' | 'english') => `
 You are "O-Assist", the elite shopping concierge for OrtenticSEA, Abuja's premier marketplace for Grade-A foreign-used items.

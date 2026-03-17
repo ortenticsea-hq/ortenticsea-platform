@@ -15,7 +15,7 @@ View your app in AI Studio: https://ai.studio/apps/drive/1u7L0tJqjMFnTweKgfXr6EJ
 
 1. Install dependencies:
    `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
+2. Set the `VITE_GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
    Optional: set `VITE_PAYSTACK_CHECKOUT_URL` in `.env.local` for checkout redirect
    Paystack return URLs supported by app: `?payment=success|cancel` or `?status=success|cancelled`
 3. Run the app:

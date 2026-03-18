@@ -1,10 +1,19 @@
-
-
-import { GoogleGenAI } from "@google/genai";
 import { PRODUCTS, SELLERS } from "../constants.tsx";
 
-let cachedClient: GoogleGenAI | null = null;
+// ✅ DO NOT import Gemini at top
 
+let GoogleGenAI: any = null;
+let cachedClient: any = null;
+
+// ✅ Lazy load Gemini
+const loadGemini = async () => {
+  if (!GoogleGenAI) {
+    const mod = await import("@google/genai");
+    GoogleGenAI = mod.GoogleGenAI;
+  }
+};
+
+// ✅ Get API key safely
 const getApiKey = () => {
   const key = (import.meta.env.VITE_GEMINI_API_KEY ?? "").trim();
 
@@ -14,29 +23,40 @@ const getApiKey = () => {
     key === "null" ||
     key === "your_gemini_key_here"
   ) {
-    console.error("❌ Gemini API Key is missing or invalid");
+    console.warn("❌ Gemini API Key missing");
     return null;
   }
 
   return key;
 };
 
-const getClient = () => {
-  const apiKey = getApiKey();
+// ✅ SAFE client init (ASYNC)
+const getClient = async () => {
+  try {
+    const apiKey = getApiKey();
 
-  if (!apiKey) return null;
+    if (!apiKey) {
+      return null;
+    }
 
-  if (!cachedClient) {
-    cachedClient = new GoogleGenAI({ apiKey });
+    await loadGemini();
+
+    if (!cachedClient) {
+      cachedClient = new GoogleGenAI({ apiKey });
+    }
+
+    return cachedClient;
+  } catch (err) {
+    console.error("Gemini init failed:", err);
+    return null;
   }
-
-  return cachedClient;
 };
 
+// ✅ KEEP YOUR FULL PROMPT HERE (unchanged)
 const getSystemInstruction = (language: 'pidgin' | 'english') => `
 You are "O-Assist", the elite shopping concierge for OrtenticSEA...
 
-[KEEP YOUR EXISTING PROMPT HERE — NO CHANGE]
+[PASTE YOUR FULL ORIGINAL PROMPT BACK HERE]
 `;
 
 export const getOAssistResponse = async (
@@ -45,7 +65,7 @@ export const getOAssistResponse = async (
   chatHistory: { role: 'user' | 'model'; parts: { text: string }[] }[] = []
 ) => {
   try {
-    const client = getClient();
+    const client = await getClient(); // ✅ IMPORTANT
 
     if (!client) {
       return language === 'pidgin'
@@ -54,7 +74,7 @@ export const getOAssistResponse = async (
     }
 
     const response = await client.models.generateContent({
-      model: "gemini-2.0-flash",
+      model: "gemini-2.0-flash", // ✅ correct model
       contents: [
         ...chatHistory.map((h) => ({
           role: h.role,

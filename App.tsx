@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import React, { Suspense, lazy, useState, useMemo, useCallback, useEffect } from 'react';
 import Header from './components/Header.tsx';
 import BottomNav from './components/BottomNav.tsx';
 import Footer from './components/Footer.tsx';
@@ -10,7 +10,6 @@ import ProductDetailView from './views/ProductDetailView.tsx';
 import SellerProfileView from './views/SellerProfileView.tsx';
 import CartView from './views/CartView.tsx';
 import SharedCartView from './views/SharedCartView.tsx';
-import ChatView from './views/ChatView.tsx';
 import ProfileView from './views/ProfileView.tsx';
 import LoginView from './views/LoginView.tsx';
 import PlaceholderView from './views/PlaceholderView.tsx';
@@ -30,6 +29,8 @@ import { initializeFirestore } from './services/firestoreInit.ts';
 import { useProducts, useProductsBySeller, useApplications, useShopByOwner, useShops, useSellers } from './hooks/useFirestore.ts';
 import { useAuth } from './AuthContext.tsx';
 import { initPaystackTransaction } from './services/paystackService.ts';
+
+const ChatView = lazy(() => import('./views/ChatView.tsx'));
 
 const App: React.FC = () => {
   const [activeView, setActiveView] = useState<ViewType | string>('home');
@@ -371,7 +372,17 @@ const App: React.FC = () => {
           <Home products={products} sellers={sellers} setView={handleNavigate} onSearch={handleSearch} onProductClick={handleProductClick} onAddToCart={handleAddToCart} />
         );
       case 'chat': 
-        return <ChatView onProductNavigate={handleProductNavigateFromChat} onAddToCart={(p) => handleAddToCart(p)} />;
+        return (
+          <Suspense
+            fallback={
+              <div className="container mx-auto px-4 py-16 text-center text-sm text-gray-500">
+                Loading assistant...
+              </div>
+            }
+          >
+            <ChatView onProductNavigate={handleProductNavigateFromChat} onAddToCart={(p) => handleAddToCart(p)} />
+          </Suspense>
+        );
       case 'profile': return <ProfileView user={currentUser} onLogout={async () => { await signOut(); setUser(null); handleNavigate('home'); }} onLoginClick={() => setShowLoginModal(true)} setView={handleNavigate} />;
       
       case 'seller-onboarding':

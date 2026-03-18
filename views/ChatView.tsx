@@ -69,15 +69,28 @@ const ChatView: React.FC<ChatViewProps> = ({ onProductNavigate, onAddToCart }) =
       parts: [{ text: m.text }]
     }));
 
-    const response = await getOAssistResponse(input, language, history);
+    try {
+      const response = await getOAssistResponse(input, language, history);
 
-    setIsTyping(false);
-    setMessages(prev => [...prev, {
-      id: (Date.now() + 1).toString(),
-      sender: 'ai',
-      text: response,
-      timestamp: new Date()
-    }]);
+      setMessages(prev => [...prev, {
+        id: (Date.now() + 1).toString(),
+        sender: 'ai',
+        text: response,
+        timestamp: new Date()
+      }]);
+    } catch (error) {
+      console.error('Chat response failed:', error);
+      setMessages(prev => [...prev, {
+        id: (Date.now() + 1).toString(),
+        sender: 'ai',
+        text: language === 'pidgin'
+          ? 'Abeg, assistant no dey available right now. Try again shortly.'
+          : 'The assistant is unavailable right now. Please try again shortly.',
+        timestamp: new Date()
+      }]);
+    } finally {
+      setIsTyping(false);
+    }
   };
 
   const renderMessageText = (text: string) => {

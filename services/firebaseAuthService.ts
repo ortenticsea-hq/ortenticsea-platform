@@ -18,8 +18,11 @@ import { auth, db } from './firebaseConfig';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { User } from '../types';
 
-// Set persistence for auth
-setPersistence(auth, browserLocalPersistence);
+// Some mobile browsers or privacy modes reject persistent storage. That
+// should not prevent the app from booting.
+void setPersistence(auth, browserLocalPersistence).catch((error) => {
+  console.warn('Auth persistence unavailable, continuing without local persistence.', error);
+});
 
 export class FirebaseAuthService {
   private static normalizeEmail(email: string): string {

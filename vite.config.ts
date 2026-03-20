@@ -12,12 +12,14 @@ export default defineConfig(() => {
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),
-      }
+      },
     },
     build: {
-      sourcemap: false,       // ✅ Disable eval-style source maps to fix CSP white screen
-      target: 'esnext',       // Optional: ensures modern browsers, avoids extra transpiling
-      minify: 'esbuild',      // Use esbuild for faster, safer minification
-    }
+      sourcemap: false,
+      // `esnext` can ship syntax that newer desktop browsers handle but some
+      // mobile browsers still fail to parse, causing a blank screen on load.
+      target: 'es2019',
+      minify: 'esbuild',
+    },
   };
 });

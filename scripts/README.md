@@ -4,6 +4,30 @@ This directory contains scripts for deploying various Firebase resources.
 
 ## Available Scripts
 
+### 0. Manage Admin Claims
+
+Verify, assign, or revoke Firebase Auth admin claims and keep the Firestore `users` role in sync.
+
+**Check default admin emails:**
+```bash
+npm run admin:claims:check
+```
+
+**Assign admin to specific emails:**
+```bash
+npm run admin:claims:assign -- "admin1@example.com,admin2@example.com"
+```
+
+**Revoke admin from specific emails:**
+```bash
+npm run admin:claims:revoke -- "admin1@example.com"
+```
+
+**Using environment variables instead of the default local service account file:**
+```bash
+FIREBASE_SERVICE_ACCOUNT_PATH=/path/to/serviceAccount.json ADMIN_EMAILS=admin@example.com npm run admin:claims:check
+```
+
 ### 1. Deploy Firestore Security Rules
 
 Deploy the Firestore security rules defined in [`firestore.rules`](../firestore.rules).

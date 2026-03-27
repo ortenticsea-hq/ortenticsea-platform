@@ -8,6 +8,9 @@
     "build": "vite build",
     "preview": "vite preview",
     "admin:claims": "node scripts/setAdminClaims.mjs",
+    "admin:claims:check": "node scripts/setAdminClaims.mjs check",
+    "admin:claims:assign": "node scripts/setAdminClaims.mjs assign",
+    "admin:claims:revoke": "node scripts/setAdminClaims.mjs revoke",
     "admin:migrate-products": "node scripts/migrateProductStatuses.mjs"
   },
   "dependencies": {

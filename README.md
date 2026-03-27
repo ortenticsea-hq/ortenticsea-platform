@@ -16,8 +16,8 @@ View your app in AI Studio: https://ai.studio/apps/drive/1u7L0tJqjMFnTweKgfXr6EJ
 1. Install dependencies:
    `npm install`
 2. Set the `VITE_GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-   Optional: set `VITE_PAYSTACK_CHECKOUT_URL` in `.env.local` for checkout redirect
-   Paystack return URLs supported by app: `?payment=success|cancel` or `?status=success|cancelled`
+   Checkout is initialized through Firebase Cloud Functions, not a client-side Paystack URL.
+   Paystack return URLs supported by app: `?view=payment-success`, `?view=payment-cancel`, `?payment=success|cancel`, or `?status=success|cancelled`
 3. Run the app:
    `npm run dev`
 
@@ -42,4 +42,25 @@ This sets the `role: 'admin'` claim and updates the Firestore `users/{uid}.role`
 - Verify admin claims are set (`npm run admin:claims`) and admin can access `admin-dashboard`.
 - Confirm public browsing shows only approved products.
 - Confirm seller dashboard shows the seller's own pending/approved/rejected listings.
-- Deploy Cloud Functions and set `PAYSTACK_SECRET_KEY` so Paystack webhooks can mark orders paid and decrement stock.
+- Deploy Cloud Functions and set `PAYSTACK_SECRET_KEY` so checkout can initialize and Paystack webhooks can mark orders paid and decrement stock.
+- Point the Paystack webhook endpoint at the deployed `paystackWebhook` Cloud Function.
+
+## Production Checkout
+
+Production checkout uses Firebase Cloud Functions plus a live Paystack webhook.
+
+1. Install Firebase CLI and log in:
+   `firebase login`
+2. Select the production alias:
+   `firebase use prod`
+3. Set the live Paystack secret in Firebase Functions:
+   `firebase functions:secrets:set PAYSTACK_SECRET_KEY --project prod`
+4. Deploy rules:
+   `firebase deploy --only firestore,storage --project prod`
+5. Deploy checkout functions:
+   `firebase deploy --only functions:initPaystackTransaction,functions:paystackWebhook --project prod`
+6. Copy the deployed `paystackWebhook` URL from the Firebase CLI output.
+7. In Paystack live dashboard, open `Settings` -> `API Keys & Webhooks` and register that URL as the webhook endpoint.
+8. Complete a real end-to-end payment and verify the order changes from `pending` to `paid`.
+
+Detailed runbook: [docs/production-checkout-deploy.md](docs/production-checkout-deploy.md)

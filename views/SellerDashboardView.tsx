@@ -14,7 +14,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { User, Product, SellerStatus, ShopStatus } from '../types';
 import { CATEGORIES } from '../constants';
-import { storage } from '../services/firebaseConfig';
+import { storage } from '../services/firebaseStorage';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 interface SellerDashboardViewProps {

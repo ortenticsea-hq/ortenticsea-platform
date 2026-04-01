@@ -1,5 +1,5 @@
-import { getFunctions, httpsCallable } from 'firebase/functions';
-import { firebaseApp } from './firebaseConfig';
+import { httpsCallable } from 'firebase/functions';
+import { functions } from './firebaseFunctions';
 
 export interface PaystackInitPayload {
   orderId: string;
@@ -12,8 +12,6 @@ export interface PaystackInitResponse {
   authorizationUrl: string;
   reference: string;
 }
-
-const functions = getFunctions(firebaseApp);
 
 export async function initPaystackTransaction(payload: PaystackInitPayload): Promise<PaystackInitResponse> {
   const init = httpsCallable(functions, 'initPaystackTransaction');

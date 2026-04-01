@@ -2,7 +2,13 @@
 export default {
   content: [
     "./index.html",
-    "./**/*.{ts,tsx}"
+    "./App.tsx",
+    "./AuthContext.tsx",
+    "./index.tsx",
+    "./components/**/*.{ts,tsx}",
+    "./hooks/**/*.{ts,tsx}",
+    "./services/**/*.{ts,tsx}",
+    "./views/**/*.{ts,tsx}"
   ],
   theme: {
     extend: {},

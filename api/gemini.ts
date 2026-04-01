@@ -34,7 +34,7 @@ const getApiKey = () => {
 
   for (const rawValue of candidates) {
     const value = rawValue?.trim();
-    if (value && value !== 'undefined' && value !== 'null' && value !== 'AIzaSyDDMr3hACYOv0AxIyta61Pze4CAeSkor34') {
+    if (value && value !== 'undefined' && value !== 'null') {
       return value;
     }
   }

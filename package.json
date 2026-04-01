@@ -5,8 +5,10 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "typecheck": "tsc --noEmit",
     "build": "vite build",
     "preview": "vite preview",
+    "ci": "npm run typecheck && npm run build",
     "admin:claims": "node scripts/setAdminClaims.mjs",
     "admin:claims:check": "node scripts/setAdminClaims.mjs check",
     "admin:claims:assign": "node scripts/setAdminClaims.mjs assign",

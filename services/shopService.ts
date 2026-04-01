@@ -1,6 +1,7 @@
 import { collection, doc, setDoc, serverTimestamp, updateDoc, deleteDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
-import { db, storage } from './firebaseConfig';
+import { db } from './firestoreDb';
+import { storage } from './firebaseStorage';
 import { Shop, ShopDocument } from '../types';
 
 const DOC_ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];

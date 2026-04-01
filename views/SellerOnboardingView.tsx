@@ -7,7 +7,7 @@ import {
   ExclamationCircleIcon
 } from '@heroicons/react/24/outline';
 import { Shop, User, ShopDocument } from '../types';
-import { submitShopApplication, deleteShopDocument } from '../services/shopService';
+import { submitShopApplication, deleteShopDocument, type ShopApplicationPayload } from '../services/shopService';
 import { FirestoreService } from '../services/firestoreService';
 
 interface SellerOnboardingViewProps {
@@ -74,7 +74,7 @@ const SellerOnboardingView: React.FC<SellerOnboardingViewProps> = ({ user, shop,
       if (!formData.shopName.trim() || !formData.description.trim() || needsId || needsAddress) {
         throw new Error('Complete all required fields.');
       }
-      const payload = {
+      const payload: ShopApplicationPayload = {
         ownerId: user.id,
         shopType: user.role === 'seller' ? 'seller' : 'buyer',
         shopName: formData.shopName.trim(),
@@ -180,7 +180,7 @@ const SellerOnboardingView: React.FC<SellerOnboardingViewProps> = ({ user, shop,
             <div className="bg-amber-50 border border-amber-100 rounded-2xl p-4 text-[11px] text-amber-700">
               <p className="font-bold uppercase tracking-widest text-[10px] mb-1">Tip</p>
               <p>Upload a clear photo or scan of your document.</p>
-              <p>File must be JPG, PNG, or PDF and not more than 5MB.</p>
+              <p>File must be JPG, PNG, or PDF and not more than 10MB.</p>
             </div>
 
             {docsLoading && (

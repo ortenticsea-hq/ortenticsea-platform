@@ -1,5 +1,5 @@
 import { collection, getDocs, setDoc, doc, writeBatch } from 'firebase/firestore';
-import { db } from './firebaseConfig';
+import { db } from './firestoreDb';
 import { PRODUCTS, SELLERS, CATEGORIES, REVIEWS, REPORTS } from '../constants';
 
 /**

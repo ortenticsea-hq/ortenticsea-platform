@@ -5,32 +5,35 @@ import BottomNav from './components/BottomNav.tsx';
 import Footer from './components/Footer.tsx';
 import ScrollToTop from './components/ScrollToTop.tsx';
 import Home from './views/Home.tsx';
-import CategoriesView from './views/CategoriesView.tsx';
-import ProductDetailView from './views/ProductDetailView.tsx';
-import SellerProfileView from './views/SellerProfileView.tsx';
-import CartView from './views/CartView.tsx';
-import SharedCartView from './views/SharedCartView.tsx';
-import ProfileView from './views/ProfileView.tsx';
 import LoginView from './views/LoginView.tsx';
-import PlaceholderView from './views/PlaceholderView.tsx';
 import VerifyEmailView from './views/VerifyEmailView.tsx';
-import SellerOnboardingView from './views/SellerOnboardingView.tsx';
-import SellerDashboardView from './views/SellerDashboardView.tsx';
-import AdminDashboardView from './views/AdminDashboardView.tsx';
-import SellerToolsView from './views/SellerToolsView.tsx';
-import InfoView from './views/InfoView.tsx';
-import PaymentReturnView from './views/PaymentReturnView.tsx';
-import OrdersView from './views/OrdersView.tsx';
 import { Product, ViewType, CartItem, Review, Seller, UserRole, SellerStatus, Order, OrderItem } from './types.ts';
 import { REVIEWS, PRODUCTS, SELLERS } from './constants.tsx';
 import { AudioService } from './services/audioService.ts';
 import { FirestoreService } from './services/firestoreService.ts';
-import { initializeFirestore } from './services/firestoreInit.ts';
-import { useProducts, useProductsBySeller, useApplications, useShopByOwner, useShops, useSellers } from './hooks/useFirestore.ts';
+import { useProducts, useProductsBySeller, useApplications, useShopByOwner, useShops, useSellers, useReviews } from './hooks/useFirestore.ts';
 import { useAuth } from './AuthContext.tsx';
-import { initPaystackTransaction } from './services/paystackService.ts';
 
+const CategoriesView = lazy(() => import('./views/CategoriesView.tsx'));
+const ProductDetailView = lazy(() => import('./views/ProductDetailView.tsx'));
+const SellerProfileView = lazy(() => import('./views/SellerProfileView.tsx'));
+const CartView = lazy(() => import('./views/CartView.tsx'));
+const SharedCartView = lazy(() => import('./views/SharedCartView.tsx'));
+const ProfileView = lazy(() => import('./views/ProfileView.tsx'));
+const SellerOnboardingView = lazy(() => import('./views/SellerOnboardingView.tsx'));
+const SellerDashboardView = lazy(() => import('./views/SellerDashboardView.tsx'));
+const AdminDashboardView = lazy(() => import('./views/AdminDashboardView.tsx'));
+const SellerToolsView = lazy(() => import('./views/SellerToolsView.tsx'));
+const InfoView = lazy(() => import('./views/InfoView.tsx'));
+const PaymentReturnView = lazy(() => import('./views/PaymentReturnView.tsx'));
+const OrdersView = lazy(() => import('./views/OrdersView.tsx'));
 const ChatView = lazy(() => import('./views/ChatView.tsx'));
+
+const viewLoadingFallback = (
+  <div className="container mx-auto px-4 py-16 text-center text-sm text-gray-500">
+    Loading view...
+  </div>
+);
 
 const App: React.FC = () => {
   const [activeView, setActiveView] = useState<ViewType | string>('home');
@@ -54,14 +57,32 @@ const App: React.FC = () => {
   const { shop: currentShop } = useShopByOwner(currentUser?.id || null);
   const { shops: allShops } = useShops(currentUser?.role === 'admin');
   const { sellers: firestoreSellers } = useSellers();
+  const useSeedData = import.meta.env.DEV;
+  const activeReviewTargetId =
+    activeView === 'product-detail'
+      ? selectedProduct?.id || null
+      : activeView === 'seller-profile'
+        ? selectedSeller?.id || null
+        : null;
+  const { reviews: firestoreReviews } = useReviews(activeReviewTargetId);
   
   // Use Firestore data if available, fallback to constants for backward compatibility
-  const products = firestoreProducts.length > 0 ? firestoreProducts : PRODUCTS;
-  const sellers = firestoreSellers.length > 0 ? firestoreSellers : SELLERS;
+  const products = firestoreProducts.length > 0 ? firestoreProducts : (useSeedData ? PRODUCTS : []);
+  const sellers = firestoreSellers.length > 0 ? firestoreSellers : (useSeedData ? SELLERS : []);
   const applications = firestoreApplications.length > 0 ? firestoreApplications : [];
   
-  // Reviews state - will be migrated to Firestore
-  const [reviews, setReviews] = useState<Review[]>(REVIEWS);
+  const [localReviews, setLocalReviews] = useState<Review[]>(useSeedData ? REVIEWS : []);
+  const reviews =
+    activeReviewTargetId == null
+      ? localReviews
+      : [
+          ...firestoreReviews,
+          ...localReviews.filter(
+            (review) =>
+              review.targetId === activeReviewTargetId &&
+              !firestoreReviews.some((existingReview) => existingReview.id === review.id)
+          ),
+        ];
   const [showVerifyBanner, setShowVerifyBanner] = useState(false);
 
   // Handle URL parameters for shared cart and payment returns
@@ -104,7 +125,9 @@ const App: React.FC = () => {
       window.localStorage.getItem('seedFirestore') === 'true';
 
     if (!shouldAutoSeedFirestore) return;
-    initializeFirestore().catch(console.error);
+    import('./services/firestoreInit.ts')
+      .then(({ initializeFirestore }) => initializeFirestore())
+      .catch(console.error);
   }, [currentUser?.role]);
 
   const cartCount = useMemo(() => cartItems.reduce((acc, item) => acc + item.quantity, 0), [cartItems]);
@@ -298,6 +321,7 @@ const App: React.FC = () => {
 
     FirestoreService.createOrder(order)
       .then(async () => {
+        const { initPaystackTransaction } = await import('./services/paystackService.ts');
         const callbackUrl = `${window.location.origin}/?view=payment-success&orderId=${encodeURIComponent(orderId)}`;
         const { authorizationUrl } = await initPaystackTransaction({
           orderId,
@@ -338,7 +362,7 @@ const App: React.FC = () => {
               const r: Review = { id: Date.now().toString(), userId: currentUser.id, userName: currentUser.name, targetId: selectedProduct.id, targetType: 'product', rating, comment, date: new Date().toISOString().split('T')[0] };
               try {
                 await FirestoreService.createReview(r);
-                setReviews(prev => [...prev, r]);
+                setLocalReviews(prev => [...prev, r]);
               } catch (error) {
                 console.error('Error adding review:', error);
               }
@@ -372,17 +396,7 @@ const App: React.FC = () => {
           <Home products={products} sellers={sellers} setView={handleNavigate} onSearch={handleSearch} onProductClick={handleProductClick} onAddToCart={handleAddToCart} />
         );
       case 'chat': 
-        return (
-          <Suspense
-            fallback={
-              <div className="container mx-auto px-4 py-16 text-center text-sm text-gray-500">
-                Loading assistant...
-              </div>
-            }
-          >
-            <ChatView onProductNavigate={handleProductNavigateFromChat} onAddToCart={(p) => handleAddToCart(p)} />
-          </Suspense>
-        );
+        return <ChatView onProductNavigate={handleProductNavigateFromChat} onAddToCart={(p) => handleAddToCart(p)} />;
       case 'profile': return <ProfileView user={currentUser} onLogout={async () => { await signOut(); setUser(null); handleNavigate('home'); }} onLoginClick={() => setShowLoginModal(true)} setView={handleNavigate} />;
       
       case 'seller-onboarding':
@@ -435,7 +449,7 @@ const App: React.FC = () => {
         ) : <Home products={products} sellers={sellers} setView={handleNavigate} onSearch={handleSearch} onProductClick={handleProductClick} onAddToCart={handleAddToCart} />;
       case 'seller-tools':
         return currentUser && currentUser.emailVerified ? (
-          <SellerToolsView onBack={() => setActiveView('seller-dashboard')} />
+          <SellerToolsView user={currentUser} onBack={() => setActiveView('seller-dashboard')} />
         ) : <Home products={products} sellers={sellers} setView={handleNavigate} onSearch={handleSearch} onProductClick={handleProductClick} onAddToCart={handleAddToCart} />;
       case 'admin-dashboard':
         return currentUser?.role === 'admin' && currentUser.emailVerified ? (
@@ -498,7 +512,7 @@ const App: React.FC = () => {
               const r: Review = { id: Date.now().toString(), userId: currentUser.id, userName: currentUser.name, targetId: selectedSeller.id, targetType: 'seller', rating, comment, date: new Date().toISOString().split('T')[0] };
               try {
                 await FirestoreService.createReview(r);
-                setReviews(prev => [...prev, r]);
+                setLocalReviews(prev => [...prev, r]);
               } catch (error) {
                 console.error('Error adding review:', error);
               }
@@ -527,7 +541,9 @@ const App: React.FC = () => {
       />
       
       <main className="flex-grow pb-16 md:pb-0 pt-4 md:pt-6 relative z-10">
-        {renderView()}
+        <Suspense fallback={viewLoadingFallback}>
+          {renderView()}
+        </Suspense>
       </main>
 
       <Footer onBecomeSeller={handleSellClick} setView={handleNavigate} />

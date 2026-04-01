@@ -2,25 +2,21 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { 
   CurrencyDollarIcon, 
   ArchiveBoxIcon, 
-  ChartBarIcon, 
   PlusIcon,
-  MapPinIcon,
-  CalendarIcon,
-  TagIcon,
   TrashIcon,
-  CheckCircleIcon,
   ExclamationTriangleIcon,
   SparklesIcon,
   ArrowLeftIcon
 } from '@heroicons/react/24/outline';
-import { InventoryItem, CashflowSnapshot } from '../types';
+import { InventoryItem, User } from '../types';
 import { SellerToolsService } from '../services/sellerToolsService.ts';
 
 interface SellerToolsViewProps {
   onBack: () => void;
+  user: User;
 }
 
-const SellerToolsView: React.FC<SellerToolsViewProps> = ({ onBack }) => {
+const SellerToolsView: React.FC<SellerToolsViewProps> = ({ onBack, user }) => {
   const [activeTab, setActiveTab] = useState<'inventory' | 'finance'>('inventory');
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -38,16 +34,17 @@ const SellerToolsView: React.FC<SellerToolsViewProps> = ({ onBack }) => {
   });
 
   useEffect(() => {
-    refreshData();
-  }, []);
+    void refreshData();
+  }, [user.id]);
 
-  const refreshData = () => {
-    setItems(SellerToolsService.getItems());
+  const refreshData = async () => {
+    const nextItems = await SellerToolsService.getItems(user.id);
+    setItems(nextItems);
   };
 
-  const cashflow = useMemo(() => SellerToolsService.calculateCashflow(), [items]);
+  const cashflow = useMemo(() => SellerToolsService.calculateCashflow(items), [items]);
 
-  const handleAddItem = (e: React.FormEvent) => {
+  const handleAddItem = async (e: React.FormEvent) => {
     e.preventDefault();
     const item: InventoryItem = {
       ...newItem as InventoryItem,
@@ -56,13 +53,13 @@ const SellerToolsView: React.FC<SellerToolsViewProps> = ({ onBack }) => {
       status: 'available',
       expenses: newItem.expenses || []
     };
-    SellerToolsService.saveItem(item);
-    refreshData();
+    await SellerToolsService.saveItem(user.id, item);
+    await refreshData();
     setShowAddModal(false);
     setNewItem({ name: '', purchasePrice: 0, expectedPrice: 0, location: '', category: 'Phones', expenses: [] });
   };
 
-  const markAsSold = (item: InventoryItem) => {
+  const markAsSold = async (item: InventoryItem) => {
     const price = prompt(`Enter actual sold price for ${item.name}:`, item.expectedPrice.toString());
     if (price) {
       const updated = { 
@@ -71,8 +68,8 @@ const SellerToolsView: React.FC<SellerToolsViewProps> = ({ onBack }) => {
         soldPrice: parseFloat(price), 
         dateSold: new Date().toISOString() 
       };
-      SellerToolsService.saveItem(updated);
-      refreshData();
+      await SellerToolsService.saveItem(user.id, updated);
+      await refreshData();
     }
   };
 
@@ -80,7 +77,7 @@ const SellerToolsView: React.FC<SellerToolsViewProps> = ({ onBack }) => {
     setIsAiLoading(true);
     setAiInsight(null);
     
-    const agingItems = SellerToolsService.getAgingInventory(14);
+    const agingItems = SellerToolsService.getAgingInventory(items, 14);
     if (agingItems.length === 0) {
       setAiInsight("Your inventory is moving well! No stale items found. Keep sourcing Grade-A items.");
       setIsAiLoading(false);
@@ -146,7 +143,10 @@ const SellerToolsView: React.FC<SellerToolsViewProps> = ({ onBack }) => {
                 <span className="text-[10px] text-gray-400 font-medium">Held: {daysHeld} days</span>
                 <div className="flex gap-2">
                   <button 
-                    onClick={() => SellerToolsService.deleteItem(item.id)}
+                    onClick={async () => {
+                      await SellerToolsService.deleteItem(item.id);
+                      await refreshData();
+                    }}
                     className="p-1.5 text-gray-300 hover:text-red-500 transition-colors"
                   >
                     <TrashIcon className="w-4 h-4" />

@@ -8,7 +8,7 @@ import {
   Timestamp,
   serverTimestamp,
 } from 'firebase/firestore';
-import { db } from './firebaseConfig';
+import { db } from './firestoreDb';
 import { SharedCart, CartItem, SharedCartError } from '../types';
 
 /**
@@ -50,7 +50,7 @@ export class SharedCartService {
       expiresAt.setHours(expiresAt.getHours() + expiryHours);
 
       // Create shared cart document
-      const sharedCart: Omit<SharedCart, 'id' | 'createdAt'> & { createdAt: any; expiresAt: any } = {
+      const sharedCart = {
         ownerId,
         items,
         locked: false,

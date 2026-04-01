@@ -14,7 +14,7 @@ import {
   onSnapshot,
   Unsubscribe,
 } from 'firebase/firestore';
-import { db } from './firebaseConfig';
+import { db } from './firestoreDb';
 import { Product, ProductStatus, Order, Seller, Category, Review, SellerApplication, User, InventoryItem, SharedCartComment, Shop, ShopDocument } from '../types';
 
 /**

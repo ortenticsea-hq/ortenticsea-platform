@@ -174,7 +174,8 @@ service cloud.firestore {
                       request.resource.data.fileUrl is string &&
                       request.resource.data.verified == false;
       allow update: if isAdmin();
-      allow delete: if isAdmin();
+      allow delete: if isAuthenticated() &&
+                      (resource.data.shopId == request.auth.uid || isAdmin());
     }
     
     // ===== INVENTORY COLLECTION =====

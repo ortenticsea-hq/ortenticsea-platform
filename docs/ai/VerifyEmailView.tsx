@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { EnvelopeIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
-import { FirebaseAuthService } from '../services/firebaseAuthService';
-import { User } from '../types';
+import { FirebaseAuthService } from '../../services/firebaseAuthService';
+import { User } from '../../types';
 
 interface VerifyEmailViewProps {
   user: User;

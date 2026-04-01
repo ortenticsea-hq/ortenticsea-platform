@@ -14,7 +14,8 @@ import {
   reload,
   fetchSignInMethodsForEmail,
 } from 'firebase/auth';
-import { auth, db } from './firebaseConfig';
+import { auth } from './firebaseAuth';
+import { db } from './firestoreDb';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { User } from '../types';
 

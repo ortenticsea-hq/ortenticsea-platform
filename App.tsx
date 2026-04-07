@@ -18,6 +18,7 @@ const CategoriesView = lazy(() => import('./views/CategoriesView.tsx'));
 const ProductDetailView = lazy(() => import('./views/ProductDetailView.tsx'));
 const SellerProfileView = lazy(() => import('./views/SellerProfileView.tsx'));
 const CartView = lazy(() => import('./views/CartView.tsx'));
+const CheckoutView = lazy(() => import('./views/CheckoutView.tsx'));
 const SharedCartView = lazy(() => import('./views/SharedCartView.tsx'));
 const ProfileView = lazy(() => import('./views/ProfileView.tsx'));
 const SellerOnboardingView = lazy(() => import('./views/SellerOnboardingView.tsx'));
@@ -377,11 +378,38 @@ const App: React.FC = () => {
             items={cartItems} 
             onRemove={(id) => setCartItems(prev => prev.filter(i => i.product.id !== id))} 
             onUpdateQty={(id, delta) => setCartItems(prev => prev.map(i => i.product.id === id ? {...i, quantity: Math.max(1, i.quantity + delta)} : i))} 
-            onCheckout={handleCheckout}
+            onCheckout={() => {
+              if (!currentUser) {
+                setPendingAction(() => () => handleNavigate('checkout'));
+                setShowLoginModal(true);
+              } else {
+                handleNavigate('checkout');
+              }
+            }}
             setView={handleNavigate}
             currentUser={currentUser}
             onLoginRequired={() => setShowLoginModal(true)}
           />
+        );
+      case 'checkout':
+        return currentUser && cartItems.length > 0 ? (
+          <Suspense fallback={viewLoadingFallback}>
+            <CheckoutView
+              items={cartItems}
+              currentUser={currentUser}
+              onBack={() => handleNavigate('cart')}
+              onPaymentSuccess={(orderId) => {
+                setCartItems([]);
+                window.localStorage.setItem('lastOrderId', orderId);
+                handleNavigate('payment-success');
+              }}
+              onPaymentFailed={() => {
+                handleNavigate('payment-cancel');
+              }}
+            />
+          </Suspense>
+        ) : (
+          <Home products={products} sellers={sellers} setView={handleNavigate} onSearch={handleSearch} onProductClick={handleProductClick} onAddToCart={handleAddToCart} />
         );
       case 'shared-cart':
         return <SharedCartView shareId={sharedCartId} setView={handleNavigate} />;

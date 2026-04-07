@@ -367,6 +367,25 @@ export class FirestoreService {
     }
   }
 
+  static async getOrder(orderId: string): Promise<Order | null> {
+    try {
+      const docSnap = await getDoc(doc(db, 'orders', orderId));
+      return docSnap.exists() ? (docSnap.data() as Order) : null;
+    } catch (error) {
+      console.error('Error fetching order:', error);
+      return null;
+    }
+  }
+
+  static async deleteOrder(orderId: string): Promise<void> {
+    try {
+      await deleteDoc(doc(db, 'orders', orderId));
+    } catch (error) {
+      console.error('Error deleting order:', error);
+      throw error;
+    }
+  }
+
   static subscribeToOrdersByBuyer(
     buyerId: string,
     callback: (orders: Order[]) => void

@@ -1,5 +1,6 @@
 
 import React, { Suspense, lazy, useState, useMemo, useCallback, useEffect } from 'react';
+import { SpeedInsights } from '@vercel/speed-insights/react';
 import Header from './components/Header.tsx';
 import BottomNav from './components/BottomNav.tsx';
 import Footer from './components/Footer.tsx';
@@ -627,6 +628,7 @@ const App: React.FC = () => {
           }}
         />
       )}
+      <SpeedInsights />
     </div>
   );
 };
